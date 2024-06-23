@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title %>
+    </title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <h1 class="title1">
+        <!-- <%= title %> -->
+    </h1>
+    <div id="flash-card-container">
+        <% data.forEach((card, index)=> { %>
+            <div class="flash-card" id="card-<%= index %>">
+                <div class="front">
+                    <h1>
+                        <%= card[0] %>
+                    </h1>
+                </div>
+                <div class="back" style="display:none;">
+                    <h1>
+                        <%= card[1] %>
+                    </h1>
+                </div>
+                <% if (card[3]) { %>
+                    <audio id="audio-<%= index %>" src="<%= card[3] %>"></audio>
+                    <% } %>
+            </div>
+            <% }) %>
+    </div>
+    <div class="card-counter" id="card-counter">1/<%= data.length %>
+    </div>
+
+    <!-- Volume control slider -->
+    <div class="volume-control">
+        <label for="volume-slider" class="gray-text">Volume: </label>
+        <input type="range" id="volume-slider" class="gray-slider" min="0" max="1" step="0.01" value="1">
+    </div>
+
+    <script>
+        let currentCardIndex = 0;
+        let activeCards = Array.from(document.querySelectorAll('.flash-card'));
+        const cardCounter = document.getElementById('card-counter');
+        const cards = document.querySelectorAll('.flash-card');
+
+        const savedVolume = localStorage.getItem('volume') || 1;
+        const volumeSlider = document.getElementById('volume-slider');
+
+
+        function showCard(index) {
+            activeCards.forEach((card, i) => {
+                card.classList.toggle('active', i === index);
+                card.querySelector('.front').style.display = 'block';
+                card.querySelector('.back').style.display = 'none';
+            });
+            updateCardCounter(index);
+            playSound(index);
+
+        }
+
+        function flipCard() {
+            const currentCard = activeCards[currentCardIndex];
+            const front = currentCard.querySelector('.front');
+            const back = currentCard.querySelector('.back');
+            if (front.style.display === 'none') {
+                front.style.display = 'block';
+                back.style.display = 'none';
+            } else {
+                front.style.display = 'none';
+                back.style.display = 'block';
+            }
+        }
+
+        function nextCard() {
+            currentCardIndex = (currentCardIndex + 1) % activeCards.length;
+            showCard(currentCardIndex);
+        }
+
+        function prevCard() {
+            currentCardIndex = (currentCardIndex - 1 + activeCards.length) % activeCards.length;
+            showCard(currentCardIndex);
+        }
+
+        function updateCardCounter(index) {
+            cardCounter.textContent = `${index + 1}/${activeCards.length}`;
+        }
+
+        function playSound(index) {
+            const audioElement = document.getElementById(`audio-${index}`);
+            if (audioElement) {
+                audioElement.play();
+            }
+        }
+        function updateVolume() {
+            cards.forEach((card, index) => {
+                const audioElement = document.getElementById(`audio-${index}`);
+                if (audioElement) {
+                    audioElement.volume = volumeSlider.value;
+                }
+            });
+            localStorage.setItem('volume', volumeSlider.value);
+        }
+
+        async function hideCard() {
+            if (activeCards.length > 1) {
+                const currentCard = activeCards[currentCardIndex];
+                const word = currentCard.querySelector('.front h1').textContent;
+
+                // Inform the server to mark the word as learned
+                await fetch('/mark-learned', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ word }),
+                });
+
+
+                activeCards[currentCardIndex].style.display = 'none';
+                activeCards.splice(currentCardIndex, 1);
+                if (currentCardIndex >= activeCards.length) {
+                    currentCardIndex = 0;
+                }
+                showCard(currentCardIndex);
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === '5') {
+                flipCard();
+            } else if (event.key === '6') {
+                nextCard();
+            } else if (event.key === '4') {
+                prevCard();
+            } else if (event.key === '8') {
+                hideCard();
+            }
+        });
+        volumeSlider.addEventListener('input', updateVolume);
+
+        // Initial display of the first card
+        showCard(currentCardIndex);
+    </script>
+</body>
+
+</html>
