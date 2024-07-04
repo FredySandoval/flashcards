@@ -14,24 +14,24 @@
     <h1 class="title1">
         <!-- <%= title %> -->
     </h1>
+
     <div id="flash-card-container">
-        <% data.forEach((card, index)=> { %>
+        <% data.forEach((card, index) => { %>
             <div class="flash-card" id="card-<%= index %>">
                 <div class="front">
-                    <h1>
-                        <%= card[0] %>
-                    </h1>
+                    <h1><%= card[0] %></h1>
                 </div>
                 <div class="back" style="display:none;">
-                    <h1>
-                        <%= card[1] %>
-                    </h1>
+                    <h1><%= card[1] %></h1>
                 </div>
                 <% if (card[3]) { %>
-                    <audio id="audio-<%= index %>" src="<%= card[3] %>"></audio>
-                    <% } %>
+                    <% const audioSources = card[3].split(',').map(src => src.trim()); %>
+                    <% audioSources.forEach((src, audioIndex) => { %>
+                        <audio id="audio-<%= index %>-<%= audioIndex %>" src="<%= src %>"></audio>
+                    <% }); %>
+                <% } %>
             </div>
-            <% }) %>
+        <% }) %>
     </div>
     <div class="card-counter" id="card-counter">1/<%= data.length %>
     </div>
@@ -48,9 +48,12 @@
         const cardCounter = document.getElementById('card-counter');
         const cards = document.querySelectorAll('.flash-card');
 
+        
         const savedVolume = localStorage.getItem('volume') || 1;
         const volumeSlider = document.getElementById('volume-slider');
-
+        
+        // Set the initial value of the volume slider
+        volumeSlider.value = savedVolume;
 
         function showCard(index) {
             activeCards.forEach((card, i) => {
@@ -90,20 +93,37 @@
             cardCounter.textContent = `${index + 1}/${activeCards.length}`;
         }
 
+        // function playSound(index) {
+        //     const audioElement = document.getElementById(`audio-${index}`);
+        //     if (audioElement) {
+        //         audioElement.play();
+        //     }
+        // }
         function playSound(index) {
-            const audioElement = document.getElementById(`audio-${index}`);
-            if (audioElement) {
-                audioElement.play();
+            const card = activeCards[index];
+            const audioElements = card.querySelectorAll('audio');
+            if (audioElements.length > 0) {
+                const randomIndex = Math.floor(Math.random() * audioElements.length);
+                const selectedAudio = audioElements[randomIndex];
+                selectedAudio.volume = volumeSlider.value;
+                selectedAudio.play();
             }
         }
+        // function updateVolume() {
+        //     cards.forEach((card, index) => {
+        //         const audioElement = document.getElementById(`audio-${index}`);
+        //         if (audioElement) {
+        //             audioElement.volume = volumeSlider.value;
+        //         }
+        //     });
+        //     localStorage.setItem('volume', volumeSlider.value);
+        // }
         function updateVolume() {
-            cards.forEach((card, index) => {
-                const audioElement = document.getElementById(`audio-${index}`);
-                if (audioElement) {
-                    audioElement.volume = volumeSlider.value;
-                }
+            const volume = volumeSlider.value;
+            document.querySelectorAll('audio').forEach(audio => {
+                audio.volume = volume;
             });
-            localStorage.setItem('volume', volumeSlider.value);
+            localStorage.setItem('volume', volume);
         }
 
         async function hideCard() {
@@ -141,6 +161,10 @@
                 hideCard();
             }
         });
+
+        // Call updateVolume initially to set the correct volume
+        updateVolume();
+
         volumeSlider.addEventListener('input', updateVolume);
 
         // Initial display of the first card

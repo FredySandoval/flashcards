@@ -1,6 +1,18 @@
+body {
+    background-color: #e0e0e0;
+}
+#flash-card-container {
+    margin-top: 40px;
+}
 .flash-card {
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    /* border: 1px solid #ccc; */
+    /* border-radius: 5px; */
+    border-radius: 30px;
+    background: #e0e0e0;
+    box-shadow:  -20px 20px 60px #bebebe,
+             20px -20px 60px #ffffff;
+
+
     padding: 20px;
     text-align: center;
     width: 400px;
@@ -10,7 +22,8 @@
 }
 
 .flash-card.active {
-    color: #2f2f2f;
+    /* color: #2f2f2f; */
+    color: #4c4c4c;
     font-family: Arial, Helvetica, sans-serif;
     display: flex;
     justify-content: center;

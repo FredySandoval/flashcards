@@ -4,6 +4,8 @@ const process = require('process');
 const { google } = require('googleapis');
 const livereload = require('livereload');
 const connectLivereload = require('connect-livereload');
+const axios = require('axios');
+const cheerio = require('cheerio');
 const app = express();
 const port = 3000;
 app.use(express.json());
@@ -15,6 +17,53 @@ const auth = new google.auth.GoogleAuth({
     keyFile: KEYFILEPATH,
     scopes: SCOPES,
 });
+
+function cleanWord(word) {
+    if (typeof word !== 'string' || word.trim() === '') {
+        return ''; // Return empty string for invalid input
+    }
+    // Remove leading articles (der, die, das) and trim spaces
+    return word.replace(/^(der|die|das)\s+/i, '').trim();
+}
+
+
+async function extractAudioExamples(word) {
+    if (typeof word !== 'string' || word.trim() === '') {
+        console.log('Invalid input: word must be a non-empty string');
+        return []; // Return empty array instead of throwing an error
+    }
+
+    const cleanedWord = cleanWord(word);
+    const url = `https://de.wiktionary.org/wiki/${encodeURIComponent(cleanedWord)}`;
+    
+    try {
+        const response = await axios.get(url);
+        const $ = cheerio.load(response.data);
+        
+        const audioExamples = [];
+        
+        $('dd').each((index, element) => {
+            const ddText = $(element).text();
+            if (ddText.includes('Hörbeispiele:')) {
+                $(element).find('a.internal').each((i, audioLink) => {
+                    const audioUrl = $(audioLink).attr('href');
+                    const audioText = $(audioLink).text();
+                    if (audioUrl && audioUrl.includes('.ogg')) {
+                        audioExamples.push({
+                            url: audioUrl.startsWith('//') ? `https:${audioUrl}` : audioUrl,
+                            text: audioText
+                        });
+                    }
+                });
+            }
+        });
+        
+        return audioExamples;
+    } catch (error) {
+        console.error(`Error processing '${cleanedWord}':`, error.message);
+        return []; // Return empty array instead of throwing an error
+    }
+}
 
 async function accessSpreadsheet() {
     try {
@@ -31,6 +80,78 @@ async function accessSpreadsheet() {
         console.error('The API returned an error:', err);
     }
 }
+
+async function updateAudioUrls(word, audioUrls) {
+    if (!word || typeof word !== 'string' || word.trim() === '') {
+        console.log('Invalid word, skipping update');
+        return;
+    }
+
+    try {
+        const sheets = google.sheets({ version: 'v4', auth });
+        const spreadsheetId = '1w8JKb4kko-PIX0y8kBsMr7Kor9KGNFsYKkR6-iNQ3xc';
+        const range = 'Sheet1!A1:D';
+
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range,
+        });
+
+        const values = response.data.values;
+        const rowIndex = values.findIndex(row => row[0] && cleanWord(row[0]) === cleanWord(word));
+
+        if (rowIndex !== -1) {
+            const audioUrlString = audioUrls.join(', ');
+            
+            // Ensure the row has at least 4 columns
+            while (values[rowIndex].length < 4) {
+                values[rowIndex].push('');
+            }
+            
+            // Always update column D (index 3)
+            values[rowIndex][3] = audioUrlString;
+
+            await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: `Sheet1!A${rowIndex + 1}:D${rowIndex + 1}`,
+                valueInputOption: 'RAW',
+                resource: {
+                    values: [values[rowIndex]],
+                },
+            });
+            console.log(`Updated audio URLs for word: ${word}`);
+        } else {
+            console.log(`Word not found in spreadsheet: ${word}`);
+        }
+    } catch (err) {
+        console.error(`Error updating audio URLs for word "${word}":`, err);
+    }
+}
+
+async function processWordWithoutAudio() {
+    const data = await accessSpreadsheet();
+    for (const row of data) {
+        const word = row[0];
+        if (!word || typeof word !== 'string' || word.trim() === '') {
+            console.log('Skipping empty or invalid word');
+            continue;
+        }
+        try {
+            const audioExamples = await extractAudioExamples(word);
+            if (audioExamples.length > 0) {
+                const audioUrls = audioExamples.map(example => example.url);
+                await updateAudioUrls(word, audioUrls);
+            } else {
+                console.log(`No audio examples found for word: ${word}`);
+                // Optionally, you can still update the spreadsheet with an empty string
+                // await updateAudioUrls(word, []);
+            }
+        } catch (error) {
+            console.error(`Error processing word "${word}":`, error.message);
+        }
+    }
+}
+
 async function markWordAsLearned(word) {
     try {
         const sheets = google.sheets({ version: 'v4', auth });
@@ -44,12 +165,11 @@ async function markWordAsLearned(word) {
         });
 
         const values = response.data.values;
-        const treatedWord = word.trim();
+        const cleanedWord = cleanWord(word);
         const rowIndex = values.findIndex(row => {
             if (row[0] !== undefined) {
-                const treatedRow = row[0].trim();
-                return treatedRow === treatedWord
-            } 
+                return cleanWord(row[0]) === cleanedWord;
+            }
         });
         // const rowIndex = values.findIndex(row => row[0].trim().toLowerCase() === word.trim().toLowerCase());
 
@@ -117,8 +237,8 @@ app.get('/', async (req, res) => {
 
         const rawData = await accessSpreadsheet();
         const data = filterData(rawData);
-        console.log(data);
-        
+        // console.log(data);
+
 
         // console.log(data);
         // Render the index.ejs template with fetched data
@@ -143,6 +263,8 @@ app.post('/mark-learned', async (req, res) => {
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
+    // processWordWithoutAudio();
+
 });
 
 // Notify livereload server about the changes
