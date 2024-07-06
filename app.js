@@ -196,18 +196,19 @@ async function markWordAsLearned(word) {
 }
 function filterData(data) {
     // Find the index of the last empty array
-    const lastEmptyIndex = data.map(JSON.stringify).lastIndexOf(JSON.stringify([]));
+    // const lastEmptyIndex = data.map(JSON.stringify).lastIndexOf(JSON.stringify([]));
 
     // Slice the data from the position after the last empty array
-    let filteredData = data;
-    if (lastEmptyIndex !== -1) {
-        filteredData = data.slice(lastEmptyIndex + 1);
-    }
+    // let filteredData = data;
+    // if (lastEmptyIndex !== -1) {
+    //     filteredData = data.slice(lastEmptyIndex + 1);
+    // }
 
     // Filter out words that have a "1" in the third column
-    filteredData = filteredData.filter(row => row[2] !== '1');
+    // filteredData = filteredData.filter(row => row[2] !== '1');
 
-    return filteredData;
+    // return filteredData;
+    return data;
 }
 
 // Environment setup
@@ -237,7 +238,7 @@ app.get('/', async (req, res) => {
 
         const rawData = await accessSpreadsheet();
         const data = filterData(rawData);
-        // console.log(data);
+        console.log(data);
 
 
         // console.log(data);

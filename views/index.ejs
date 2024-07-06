@@ -8,6 +8,32 @@
         <%= title %>
     </title>
     <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .mobile-buttons {
+            display: none;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .mobile-button {
+            margin: 0 10px;
+            cursor: pointer;
+            padding: 10px 20px;
+            box-shadow: -20px 20px 60px #bebebe,
+                20px -20px 60px #ffffff;
+            border: none;
+            background: #e0e0e0;
+            border-radius: 5px;
+        }
+
+        /* Show buttons only on screens smaller than 768px (typical smartphone width) */
+
+        @media screen and (max-width: 768px) {
+            .mobile-buttons {
+                display: flex;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -16,23 +42,37 @@
     </h1>
 
     <div id="flash-card-container">
-        <% data.forEach((card, index) => { %>
+        <% data.forEach((card, index)=> { %>
+
             <div class="flash-card" id="card-<%= index %>">
                 <div class="front">
-                    <h1><%= card[0] %></h1>
+                    <h1>
+                        <%= card[0] %>
+                    </h1>
                 </div>
                 <div class="back" style="display:none;">
-                    <h1><%= card[1] %></h1>
+                    <h1>
+                        <%= card[1] %>
+                    </h1>
                 </div>
                 <% if (card[3]) { %>
-                    <% const audioSources = card[3].split(',').map(src => src.trim()); %>
-                    <% audioSources.forEach((src, audioIndex) => { %>
-                        <audio id="audio-<%= index %>-<%= audioIndex %>" src="<%= src %>"></audio>
-                    <% }); %>
-                <% } %>
+                    <% const audioSources=card[3].split(',').map(src=> src.trim()); %>
+                        <% audioSources.forEach((src, audioIndex)=> { %>
+                            <audio id="audio-<%= index %>-<%= audioIndex %>" src="<%= src %>"></audio>
+                            <% }); %>
+                                <% } %>
             </div>
-        <% }) %>
+            <% }) %>
     </div>
+
+    <!-- Mobile buttons -->
+    <div class="mobile-buttons">
+        <button class="mobile-button" id="hideButton">Hide</button>
+        <button class="mobile-button" id="prevButton">LEFT</button>
+        <button class="mobile-button" id="flipButton">Flip</button>
+        <button class="mobile-button" id="nextButton">RIGHT</button>
+    </div>
+
     <div class="card-counter" id="card-counter">1/<%= data.length %>
     </div>
 
@@ -42,16 +82,26 @@
         <input type="range" id="volume-slider" class="gray-slider" min="0" max="1" step="0.01" value="1">
     </div>
 
+    <div class="deck-counter" id="deck-counter"></div>
+
+    <button class="mobile-button" id="prevDeckButton">Prev Deck</button>
+    <button class="mobile-button" id="nextDeckButton">Next Deck</button>
+
+
     <script>
+        // Add these variables at the beginning of your script
+        let decks = [];
+        let currentDeckIndex = 0;
         let currentCardIndex = 0;
         let activeCards = Array.from(document.querySelectorAll('.flash-card'));
+        // let activeCards = [];
+
         const cardCounter = document.getElementById('card-counter');
         const cards = document.querySelectorAll('.flash-card');
 
-        
         const savedVolume = localStorage.getItem('volume') || 1;
         const volumeSlider = document.getElementById('volume-slider');
-        
+
         // Set the initial value of the volume slider
         volumeSlider.value = savedVolume;
 
@@ -63,7 +113,6 @@
             });
             updateCardCounter(index);
             playSound(index);
-
         }
 
         function flipCard() {
@@ -93,12 +142,6 @@
             cardCounter.textContent = `${index + 1}/${activeCards.length}`;
         }
 
-        // function playSound(index) {
-        //     const audioElement = document.getElementById(`audio-${index}`);
-        //     if (audioElement) {
-        //         audioElement.play();
-        //     }
-        // }
         function playSound(index) {
             const card = activeCards[index];
             const audioElements = card.querySelectorAll('audio');
@@ -109,15 +152,7 @@
                 selectedAudio.play();
             }
         }
-        // function updateVolume() {
-        //     cards.forEach((card, index) => {
-        //         const audioElement = document.getElementById(`audio-${index}`);
-        //         if (audioElement) {
-        //             audioElement.volume = volumeSlider.value;
-        //         }
-        //     });
-        //     localStorage.setItem('volume', volumeSlider.value);
-        // }
+
         function updateVolume() {
             const volume = volumeSlider.value;
             document.querySelectorAll('audio').forEach(audio => {
@@ -131,22 +166,41 @@
                 const currentCard = activeCards[currentCardIndex];
                 const word = currentCard.querySelector('.front h1').textContent;
 
-                // Inform the server to mark the word as learned
-                await fetch('/mark-learned', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ word }),
-                });
+                // Show confirmation alert
+                const confirmHide = confirm(`Are you sure you want to hide the card for "${word}"?`);
 
+                if (confirmHide) {
+                    try {
+                        // Inform the server to mark the word as learned
+                        const response = await fetch('/mark-learned', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ word }),
+                        });
 
-                activeCards[currentCardIndex].style.display = 'none';
-                activeCards.splice(currentCardIndex, 1);
-                if (currentCardIndex >= activeCards.length) {
-                    currentCardIndex = 0;
+                        if (!response.ok) {
+                            throw new Error('Failed to mark word as learned');
+                        }
+
+                        // Remove the card from the active cards
+                        activeCards[currentCardIndex].style.display = 'none';
+                        activeCards.splice(currentCardIndex, 1);
+
+                        if (currentCardIndex >= activeCards.length) {
+                            currentCardIndex = 0;
+                        }
+
+                        showCard(currentCardIndex);
+                        alert(`The card for "${word}" has been hidden.`);
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('An error occurred while trying to hide the card. Please try again.');
+                    }
                 }
-                showCard(currentCardIndex);
+            } else {
+                alert('This is the last card. You cannot hide it.');
             }
         }
 
@@ -161,6 +215,12 @@
                 hideCard();
             }
         });
+
+        // Mobile button event listeners
+        document.getElementById('flipButton').addEventListener('click', flipCard);
+        document.getElementById('nextButton').addEventListener('click', nextCard);
+        document.getElementById('prevButton').addEventListener('click', prevCard);
+        document.getElementById('hideButton').addEventListener('click', hideCard);
 
         // Call updateVolume initially to set the correct volume
         updateVolume();
