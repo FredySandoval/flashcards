@@ -26,7 +26,6 @@
             border-radius: 5px;
         }
 
-        /* Show buttons only on screens smaller than 768px (typical smartphone width) */
 
         @media screen and (max-width: 768px) {
             .mobile-buttons {
@@ -44,7 +43,8 @@
     <div id="flash-card-container">
         <% data.forEach((card, index)=> { %>
 
-            <div class="flash-card" id="card-<%= index %>">
+            <div class="flash-card" id="card-<%= index %>" data-optional-notes="<%= card[2] %>"
+                end-of-deck="<%= (card[0] == null)%>">
                 <div class="front">
                     <h1>
                         <%= card[0] %>
@@ -83,17 +83,20 @@
     </div>
 
     <div class="deck-counter" id="deck-counter"></div>
-
     <button class="mobile-button" id="prevDeckButton">Prev Deck</button>
     <button class="mobile-button" id="nextDeckButton">Next Deck</button>
 
 
     <script>
+
         // Add these variables at the beginning of your script
+
         let decks = [];
         let currentDeckIndex = 0;
+
         let currentCardIndex = 0;
-        let activeCards = Array.from(document.querySelectorAll('.flash-card'));
+        // let activeCards = Array.from(document.querySelectorAll('.flash-card'));
+        let activeCards = [];
         // let activeCards = [];
 
         const cardCounter = document.getElementById('card-counter');
@@ -105,7 +108,73 @@
         // Set the initial value of the volume slider
         volumeSlider.value = savedVolume;
 
+        // function initializeCards() {
+        //     activeCards = Array.from(cards).filter(card => {
+        //         const optionalNotes = card.dataset.optionalNotes;
+        //         return optionalNotes !== '1';
+        //     });
+        //     updateCardCounter(0);
+        // }
+        function initializeCards() {
+            let currentDeck = [];
+            cards.forEach(card => {
+                if (card.getAttribute('end-of-deck') === 'true') {
+                    if (currentDeck.length > 0) {
+                        decks.push(currentDeck);
+                        currentDeck = [];
+                    }
+                } else {
+                    const optionalNotes = card.dataset.optionalNotes;
+                    if (optionalNotes !== '1') {
+                        currentDeck.push(card);
+                    }
+                }
+            });
+            if (currentDeck.length > 0) {
+                decks.push(currentDeck);
+            }
+            activeCards = decks[currentDeckIndex];
+            updateCardCounter(0);
+            updateDeckCounter();
+        }
+        function nextDeck() {
+            if (currentDeckIndex < decks.length - 1) {
+                currentDeckIndex++;
+                activeCards = decks[currentDeckIndex];
+                currentCardIndex = 0;
+                showCard(currentCardIndex);
+                updateDeckCounter();
+            }
+        }
+
+        function prevDeck() {
+            if (currentDeckIndex > 0) {
+                currentDeckIndex--;
+                activeCards = decks[currentDeckIndex];
+                currentCardIndex = 0;
+                showCard(currentCardIndex);
+                updateDeckCounter();
+            }
+        }
+
+        function updateDeckCounter() {
+            const deckCounter = document.getElementById('deck-counter');
+            deckCounter.textContent = `Deck ${currentDeckIndex + 1}/${decks.length}`;
+        }
+        // function showCard(index) {
+        //     activeCards.forEach((card, i) => {
+        //         card.classList.toggle('active', i === index);
+        //         card.querySelector('.front').style.display = 'block';
+        //         card.querySelector('.back').style.display = 'none';
+        //     });
+        //     updateCardCounter(index);
+        //     playSound(index);
+        // }
         function showCard(index) {
+            if (activeCards.length === 0) {
+                cardCounter.textContent = "No cards in this deck";
+                return;
+            }
             activeCards.forEach((card, i) => {
                 card.classList.toggle('active', i === index);
                 card.querySelector('.front').style.display = 'block';
@@ -128,14 +197,34 @@
             }
         }
 
+        // function nextCard() {
+        //     currentCardIndex = (currentCardIndex + 1) % activeCards.length;
+        //     showCard(currentCardIndex);
+        // }
         function nextCard() {
-            currentCardIndex = (currentCardIndex + 1) % activeCards.length;
-            showCard(currentCardIndex);
+            currentCardIndex++;
+            if (currentCardIndex >= activeCards.length) {
+                nextDeck();
+            } else {
+                showCard(currentCardIndex);
+            }
         }
 
+        // function prevCard() {
+        //     currentCardIndex = (currentCardIndex - 1 + activeCards.length) % activeCards.length;
+        //     showCard(currentCardIndex);
+        // }
         function prevCard() {
-            currentCardIndex = (currentCardIndex - 1 + activeCards.length) % activeCards.length;
-            showCard(currentCardIndex);
+            currentCardIndex--;
+            if (currentCardIndex < 0) {
+                prevDeck();
+                if (activeCards.length > 0) {
+                    currentCardIndex = activeCards.length - 1;
+                    showCard(currentCardIndex);
+                }
+            } else {
+                showCard(currentCardIndex);
+            }
         }
 
         function updateCardCounter(index) {
@@ -221,6 +310,8 @@
         document.getElementById('nextButton').addEventListener('click', nextCard);
         document.getElementById('prevButton').addEventListener('click', prevCard);
         document.getElementById('hideButton').addEventListener('click', hideCard);
+        document.getElementById('nextDeckButton').addEventListener('click', nextDeck);
+        document.getElementById('prevDeckButton').addEventListener('click', prevDeck);
 
         // Call updateVolume initially to set the correct volume
         updateVolume();
@@ -228,7 +319,9 @@
         volumeSlider.addEventListener('input', updateVolume);
 
         // Initial display of the first card
+        initializeCards();
         showCard(currentCardIndex);
+
     </script>
 </body>
 

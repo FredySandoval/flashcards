@@ -22,8 +22,8 @@ function cleanWord(word) {
     if (typeof word !== 'string' || word.trim() === '') {
         return ''; // Return empty string for invalid input
     }
-    // Remove leading articles (der, die, das) and trim spaces
-    return word.replace(/^(der|die|das)\s+/i, '').trim();
+    // Trim spaces first and then remove leading articles (der, die, das)
+    return word.trim().replace(/^(der|die|das)\s+/i, '').trim();
 }
 
 
@@ -238,7 +238,7 @@ app.get('/', async (req, res) => {
 
         const rawData = await accessSpreadsheet();
         const data = filterData(rawData);
-        console.log(data);
+        // console.log(data);
 
 
         // console.log(data);
@@ -253,6 +253,7 @@ app.get('/', async (req, res) => {
 // Define a route to mark a word as learned
 app.post('/mark-learned', async (req, res) => {
     const { word } = req.body;
+    console.log('test word', word);
     try {
         await markWordAsLearned(word);
         res.status(200).send('Word marked as learned');
