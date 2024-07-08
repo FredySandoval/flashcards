@@ -9,6 +9,24 @@
     </title>
     <link rel="stylesheet" href="/css/styles.css">
     <style>
+        .auto-play-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .auto-play-controls button {
+            margin: 0 5px;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #intervalDisplay {
+            font-size: 16px;
+            margin: 0 10px;
+        }
+
         .mobile-buttons {
             display: none;
             justify-content: center;
@@ -87,6 +105,13 @@
     <button class="mobile-button" id="prevDeckButton">Prev Deck</button>
     <button class="mobile-button" id="nextDeckButton">Next Deck</button>
 
+    <div class="auto-play-controls">
+        <button id="playPauseButton">Play</button>
+        <button id="decreaseIntervalButton">-</button>
+        <span id="intervalDisplay">3s</span>
+        <button id="increaseIntervalButton">+</button>
+    </div>
+
 
     <script>
 
@@ -106,6 +131,16 @@
 
         // Set the initial value of the volume slider
         volumeSlider.value = savedVolume;
+
+        let isPlaying = false;
+        let playInterval;
+        let intervalTime = 3000; // 3 seconds default
+
+        const playPauseButton = document.getElementById('playPauseButton');
+        const decreaseIntervalButton = document.getElementById('decreaseIntervalButton');
+        const increaseIntervalButton = document.getElementById('increaseIntervalButton');
+        const intervalDisplay = document.getElementById('intervalDisplay');
+
 
         function initializeCards() {
             let currentDeck = [];
@@ -174,7 +209,9 @@
             });
 
             updateCardCounter(index);
-            playSound(index);
+            if (isPlaying) {
+                playSound(index);
+            }
         }
 
         function flipCard() {
@@ -275,6 +312,54 @@
             }
         }
 
+        function togglePlay() {
+            if (isPlaying) {
+                stopAutoPlay();
+            } else {
+                startAutoPlay();
+            }
+        }
+
+        function startAutoPlay() {
+            isPlaying = true;
+            playPauseButton.textContent = 'Stop';
+            playInterval = setInterval(() => {
+                // playSound(currentCardIndex);
+                nextCard();
+            }, intervalTime);
+        }
+
+        function stopAutoPlay() {
+            isPlaying = false;
+            playPauseButton.textContent = 'Play';
+            clearInterval(playInterval);
+        }
+
+        function updateIntervalDisplay() {
+            intervalDisplay.textContent = `${intervalTime / 1000}s`;
+        }
+
+        function increaseInterval() {
+            intervalTime += 1000;
+            updateIntervalDisplay();
+            if (isPlaying) {
+                stopAutoPlay();
+                startAutoPlay();
+            }
+        }
+
+        function decreaseInterval() {
+            if (intervalTime > 1000) {
+                intervalTime -= 1000;
+                updateIntervalDisplay();
+                if (isPlaying) {
+                    stopAutoPlay();
+                    startAutoPlay();
+                }
+            }
+        }
+
+
         document.addEventListener('keydown', (event) => {
             if (event.key === '5') {
                 flipCard();
@@ -294,6 +379,10 @@
         document.getElementById('hideButton').addEventListener('click', hideCard);
         document.getElementById('nextDeckButton').addEventListener('click', nextDeck);
         document.getElementById('prevDeckButton').addEventListener('click', prevDeck);
+
+        playPauseButton.addEventListener('click', togglePlay);
+        decreaseIntervalButton.addEventListener('click', decreaseInterval);
+        increaseIntervalButton.addEventListener('click', increaseInterval);
 
         // Call updateVolume initially to set the correct volume
         updateVolume();
