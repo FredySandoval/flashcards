@@ -12,13 +12,14 @@
         .mobile-buttons {
             display: none;
             justify-content: center;
-            margin-top: 20px;
+            flex-direction: row;
         }
 
         .mobile-button {
-            margin: 0 10px;
+            flex-grow: 1;
+            padding-top: 20px;
+            padding-bottom: 20px;
             cursor: pointer;
-            padding: 10px 20px;
             box-shadow: -20px 20px 60px #bebebe,
                 20px -20px 60px #ffffff;
             border: none;
@@ -95,9 +96,7 @@
         let currentDeckIndex = 0;
 
         let currentCardIndex = 0;
-        // let activeCards = Array.from(document.querySelectorAll('.flash-card'));
         let activeCards = [];
-        // let activeCards = [];
 
         const cardCounter = document.getElementById('card-counter');
         const cards = document.querySelectorAll('.flash-card');
@@ -108,13 +107,6 @@
         // Set the initial value of the volume slider
         volumeSlider.value = savedVolume;
 
-        // function initializeCards() {
-        //     activeCards = Array.from(cards).filter(card => {
-        //         const optionalNotes = card.dataset.optionalNotes;
-        //         return optionalNotes !== '1';
-        //     });
-        //     updateCardCounter(0);
-        // }
         function initializeCards() {
             let currentDeck = [];
             cards.forEach(card => {
@@ -161,25 +153,26 @@
             const deckCounter = document.getElementById('deck-counter');
             deckCounter.textContent = `Deck ${currentDeckIndex + 1}/${decks.length}`;
         }
-        // function showCard(index) {
-        //     activeCards.forEach((card, i) => {
-        //         card.classList.toggle('active', i === index);
-        //         card.querySelector('.front').style.display = 'block';
-        //         card.querySelector('.back').style.display = 'none';
-        //     });
-        //     updateCardCounter(index);
-        //     playSound(index);
-        // }
         function showCard(index) {
             if (activeCards.length === 0) {
                 cardCounter.textContent = "No cards in this deck";
                 return;
             }
-            activeCards.forEach((card, i) => {
-                card.classList.toggle('active', i === index);
+
+            // Remove 'active' class from all cards in all decks
+            cards.forEach(card => {
+                card.classList.remove('active');
+            });
+
+            // Add 'active' class only to the current card
+            activeCards[index].classList.add('active');
+
+            // Reset display of front and back for all cards
+            activeCards.forEach(card => {
                 card.querySelector('.front').style.display = 'block';
                 card.querySelector('.back').style.display = 'none';
             });
+
             updateCardCounter(index);
             playSound(index);
         }
@@ -197,35 +190,24 @@
             }
         }
 
-        // function nextCard() {
-        //     currentCardIndex = (currentCardIndex + 1) % activeCards.length;
-        //     showCard(currentCardIndex);
-        // }
         function nextCard() {
             currentCardIndex++;
             if (currentCardIndex >= activeCards.length) {
-                nextDeck();
-            } else {
-                showCard(currentCardIndex);
+                // Reset to the first card of the current deck
+                currentCardIndex = 0;
             }
+            showCard(currentCardIndex);
         }
 
-        // function prevCard() {
-        //     currentCardIndex = (currentCardIndex - 1 + activeCards.length) % activeCards.length;
-        //     showCard(currentCardIndex);
-        // }
         function prevCard() {
             currentCardIndex--;
             if (currentCardIndex < 0) {
-                prevDeck();
-                if (activeCards.length > 0) {
-                    currentCardIndex = activeCards.length - 1;
-                    showCard(currentCardIndex);
-                }
-            } else {
-                showCard(currentCardIndex);
+                // Loop back to the last card of the current deck
+                currentCardIndex = activeCards.length - 1;
             }
+            showCard(currentCardIndex);
         }
+
 
         function updateCardCounter(index) {
             cardCounter.textContent = `${index + 1}/${activeCards.length}`;
