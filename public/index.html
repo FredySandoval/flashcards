@@ -26,6 +26,11 @@
             <button id="right-button">RIGHT</button>
         </div>
     </div>
+    <div id="card-info"></div>
+    <div id="deck-info"></div>
+
+    <button id="prev-deck-button">Previous Deck</button>
+    <button id="next-deck-button">Next Deck</button>
 
     <script>
         let flashcards;
@@ -68,18 +73,12 @@
             }
         }
         function getCurrentDeckBoundaries() {
-            let start = currentIndex;
-            let end = currentIndex;
+            const deckSize = 25;
+            const totalFlashcards = flashcards.length;
+            const currentDeck = Math.floor(currentIndex / deckSize);
 
-            // Find start of current deck
-            while (start > 0 && flashcards[start - 1].length !== 0) {
-                start--;
-            }
-
-            // Find end of current deck
-            while (end < flashcards.length - 1 && flashcards[end + 1].length !== 0) {
-                end++;
-            }
+            const start = currentDeck * deckSize;
+            const end = Math.min((currentDeck + 1) * deckSize - 1, totalFlashcards - 1);
 
             return { start, end };
         }
@@ -115,7 +114,22 @@
                 displayCurrentFlashcard();
             }
         }
+        function moveToNextDeck() {
+            const { end } = getCurrentDeckBoundaries();
+            const totalFlashcards = flashcards.length;
+            if (end < totalFlashcards - 1) {
+                currentIndex = end + 1;
+                displayCurrentFlashcard();
+            }
+        }
 
+        function moveToPreviousDeck() {
+            const { start } = getCurrentDeckBoundaries();
+            if (start > 0) {
+                currentIndex = Math.max(0, start - 25);
+                displayCurrentFlashcard();
+            }
+        }
 
         function displayCurrentFlashcard() {
             if (flashcards && flashcards.length > 0 && flashcards[currentIndex].length > 0) {
@@ -137,6 +151,16 @@
                 if (currentFlashcard[3]) {
                     playAudio(currentFlashcard[0], currentFlashcard[3]);
                 }
+
+                // Display current deck and card info
+                const { start, end } = getCurrentDeckBoundaries();
+                const currentDeck = Math.floor(start / 25) + 1;
+                const totalDecks = Math.ceil(flashcards.length / 25);
+                const currentCardInDeck = (currentIndex - start) + 1;
+                const totalCardsInDeck = end - start + 1;
+
+                document.getElementById('card-info').textContent =
+                    `${totalDecks}/${currentDeck}` + ' ' + `${totalCardsInDeck}/${currentCardInDeck}`;
             }
         }
 
@@ -223,6 +247,8 @@
         document.getElementById('right-button').addEventListener('click', nextFlashcard);
         document.getElementById('left-button').addEventListener('click', previousFlashcard);
         document.getElementById('mark-button').addEventListener('click', markFlashcard);
+        document.getElementById('next-deck-button').addEventListener('click', moveToNextDeck);
+        document.getElementById('prev-deck-button').addEventListener('click', moveToPreviousDeck);
 
 
         initializeFlashcards();
