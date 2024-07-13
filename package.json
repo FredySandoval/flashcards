@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
-    "dev": "NODE_ENV=dev nodemon -e html,js: app.js"
+    "dev": "NODE_ENV=dev nodemon -e html,js app.js"
   },
   "keywords": [],
   "author": "",

@@ -32,6 +32,10 @@
     <button id="prev-deck-button">Previous Deck</button>
     <button id="next-deck-button">Next Deck</button>
 
+    <button id="study-word">study this word</button>
+
+    <button id="toggle-study-mode">Study Marked</button>
+
     <script>
         let flashcards;
         let currentIndex = -1;
@@ -39,6 +43,12 @@
         let currentAudio;
         let audioIndex = {};
         let audioElement;
+        let studyInterval;
+        let isStudyMode = false;
+        let isStudyingMarked = false;
+        let markedFlashcards = [];
+        let lastNormalModeIndex = 0;
+
 
 
         async function fetchFlashcards() {
@@ -72,6 +82,59 @@
                 throw error;
             }
         }
+        function toggleStudyMarked() {
+            isStudyingMarked = !isStudyingMarked;
+            const toggleButton = document.getElementById('toggle-study-mode');
+
+            if (isStudyingMarked) {
+                // Switching to "Marked Flashcards Only" mode
+                markedFlashcards = flashcards.filter(card => card[2] === 'marked');
+                if (markedFlashcards.length === 0) {
+                    alert("No marked flashcards found. Please mark some flashcards first.");
+                    isStudyingMarked = false;
+                    return;
+                }
+                lastNormalModeIndex = currentIndex; // Store the current index before switching
+                currentIndex = 0; // Start at the beginning of marked flashcards
+                toggleButton.textContent = 'Normal Mode';
+            } else {
+                // Switching back to "Normal Mode"
+                currentIndex = lastNormalModeIndex; // Restore the last normal mode index
+                toggleButton.textContent = 'Study Marked';
+            }
+
+            displayCurrentFlashcard();
+        }
+        function toggleStudyMode() {
+            const studyButton = document.getElementById('study-word');
+            isStudyMode = !isStudyMode;
+
+            if (isStudyMode) {
+                studyButton.textContent = 'Stop';
+                studyCurrentWord();
+            } else {
+                studyButton.textContent = 'Study this word';
+                stopStudyMode();
+            }
+        }
+        function studyCurrentWord() {
+            if (flashcards && flashcards.length > 0) {
+                let currentFlashcard = flashcards[currentIndex];
+                if (currentFlashcard[3]) {
+                    studyInterval = setInterval(() => {
+                        playAudio(currentFlashcard[0], currentFlashcard[3]);
+                    }, 3000); // Play every 3 seconds
+                }
+            }
+        }
+        function stopStudyMode() {
+            clearInterval(studyInterval);
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+        }
+
         function getCurrentDeckBoundaries() {
             const deckSize = 25;
             const totalFlashcards = flashcards.length;
@@ -92,27 +155,28 @@
         }
 
         function nextFlashcard() {
-            if (flashcards && flashcards.length > 0) {
+            if (isStudyingMarked) {
+                currentIndex = (currentIndex + 1) % markedFlashcards.length;
+            } else {
                 const { start, end } = getCurrentDeckBoundaries();
                 currentIndex = currentIndex === end ? start : currentIndex + 1;
-                // Skip empty arrays (deck separators)
                 while (flashcards[currentIndex].length === 0 && currentIndex < end) {
                     currentIndex++;
                 }
-                displayCurrentFlashcard();
             }
+            displayCurrentFlashcard();
         }
-
         function previousFlashcard() {
-            if (flashcards && flashcards.length > 0) {
+            if (isStudyingMarked) {
+                currentIndex = (currentIndex - 1 + markedFlashcards.length) % markedFlashcards.length;
+            } else {
                 const { start, end } = getCurrentDeckBoundaries();
                 currentIndex = currentIndex === start ? end : currentIndex - 1;
-                // Skip empty arrays (deck separators)
                 while (flashcards[currentIndex].length === 0 && currentIndex > start) {
                     currentIndex--;
                 }
-                displayCurrentFlashcard();
             }
+            displayCurrentFlashcard();
         }
         function moveToNextDeck() {
             const { end } = getCurrentDeckBoundaries();
@@ -130,10 +194,31 @@
                 displayCurrentFlashcard();
             }
         }
+        function updateCardInfo() {
+            const { start, end } = getCurrentDeckBoundaries();
+            const currentDeck = isStudyingMarked ? markedFlashcards : flashcards;
+            const totalCards = currentDeck.length;
+            const currentCardNumber = currentIndex + 1;
+            const currentCardInDeck = (currentIndex - start) + 1;
+            const totalCardsInDeck = end - start + 1;
+
+            let infoText = isStudyingMarked
+                ? `Marked Card ${currentCardNumber}/${totalCards}`
+                : `Card ${currentCardInDeck}/${totalCardsInDeck}`;
+
+            if (!isStudyingMarked) {
+                const currentDeck = Math.floor(start / 25) + 1;
+                const totalDecks = Math.ceil(flashcards.length / 25); // fix this one
+                infoText += ` | Deck ${currentDeck}/${totalDecks}`;
+            }
+
+            document.getElementById('card-info').textContent = infoText;
+        }
 
         function displayCurrentFlashcard() {
-            if (flashcards && flashcards.length > 0 && flashcards[currentIndex].length > 0) {
-                let currentFlashcard = flashcards[currentIndex];
+            const currentDeck = isStudyingMarked ? markedFlashcards : flashcards;
+            if (currentDeck && currentDeck.length > 0 && currentDeck[currentIndex].length > 0) {
+                let currentFlashcard = currentDeck[currentIndex];
                 document.getElementById('flashcard-content').textContent = currentFlashcard[0];
                 isFlipped = false;
 
@@ -152,18 +237,10 @@
                     playAudio(currentFlashcard[0], currentFlashcard[3]);
                 }
 
-                // Display current deck and card info
-                const { start, end } = getCurrentDeckBoundaries();
-                const currentDeck = Math.floor(start / 25) + 1;
-                const totalDecks = Math.ceil(flashcards.length / 25);
-                const currentCardInDeck = (currentIndex - start) + 1;
-                const totalCardsInDeck = end - start + 1;
-
-                document.getElementById('card-info').textContent =
-                    `${totalDecks}/${currentDeck}` + ' ' + `${totalCardsInDeck}/${currentCardInDeck}`;
+                // Display current card info
+                updateCardInfo();
             }
         }
-
         function playAudio(word, urlString) {
             // Stop current audio if it's playing
             if (currentAudio) {
@@ -198,8 +275,9 @@
 
 
         function flipFlashcard() {
-            if (flashcards && flashcards.length > 0) {
-                let currentFlashcard = flashcards[currentIndex];
+            const currentDeck = isStudyingMarked ? markedFlashcards : flashcards;
+            if (currentDeck && currentDeck.length > 0) {
+                let currentFlashcard = currentDeck[currentIndex];
                 isFlipped = !isFlipped;
                 document.getElementById('flashcard-content').textContent = isFlipped ? currentFlashcard[1] : currentFlashcard[0];
 
@@ -249,6 +327,10 @@
         document.getElementById('mark-button').addEventListener('click', markFlashcard);
         document.getElementById('next-deck-button').addEventListener('click', moveToNextDeck);
         document.getElementById('prev-deck-button').addEventListener('click', moveToPreviousDeck);
+        document.getElementById('study-word').addEventListener('click', toggleStudyMode);
+        document.getElementById('toggle-study-mode').addEventListener('click', toggleStudyMarked);
+
+
 
 
         initializeFlashcards();

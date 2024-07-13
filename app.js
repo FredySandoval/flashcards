@@ -6,11 +6,11 @@ const app = express();
 app.use(express.json());
 
 // Serve static files from the 'public' directory
+const livereload = require("livereload");
+const connectLiveReload = require("connect-livereload");
+const liveReloadServer = livereload.createServer();
 
 if (process.env.NODE_ENV === "dev") {
-    var livereload = require("livereload");
-    var connectLiveReload = require("connect-livereload");
-    const liveReloadServer = livereload.createServer();
     liveReloadServer.watch(path.join(__dirname, "public"));
     app.use(connectLiveReload());
 }
