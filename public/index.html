@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="flash-card-container">
+        <div class="flash-card">
+            <div id="marker" class="marker" style="display: none;"></div>
+            <p id="flashcard-content"></p>
+        </div>
+    </div>
+    <div class="buttons-wrapper">
+        <div class="buttons-container">
+            <button id="mark-button">MARK</button>
+            <button id="left-button">LEFT</button>
+            <button id="flip-button">Flip</button>
+            <button id="right-button">RIGHT</button>
+        </div>
+    </div>
+
+    <script>
+        let flashcards;
+        let currentIndex = -1;
+        let isFlipped = false;
+        let currentAudio;
+        let audioIndex = {};
+        let audioElement;
+
+
+        async function fetchFlashcards() {
+            try {
+                const response = await fetch('/getAllFlashCardsInRawData');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                /**
+                 * @type {Array<Array<string>>}
+                 * 
+                 * @property {string} [0] - the word or phrase
+                 * @property {string} [1] - the translation of the word or phrase
+                 * @property {string} [2] - marker for future refence, a string
+                 * @property {string} [3] - the url(s) of sound(s) of the pronunciation
+                 * @example: 
+                 * [
+                 *  ["ebenso","igualmente","","https://upload.wikimedia.org/De-ebenso.ogg"],
+                 *  ["besonders","especialmente","","https://upload.wikimedia.org/besonders.ogg"],
+                 *  ["das Verkehrsmittel","medio de transporte","","https://upload.wikimedia.org/De-Verkehrsmittel.ogg"],
+                 *  ["geleiten","escoltar","","https://upload.wikimedia.org/wikipedia/commons/3/3b/De-geleiten.ogg"]
+                 * ]
+                 */
+                const values = data.values;
+                return values;
+            } catch (error) {
+                console.error("There was a problem fetching the flashcard data:", error);
+                throw error;
+            }
+        }
+        function getCurrentDeckBoundaries() {
+            let start = currentIndex;
+            let end = currentIndex;
+
+            // Find start of current deck
+            while (start > 0 && flashcards[start - 1].length !== 0) {
+                start--;
+            }
+
+            // Find end of current deck
+            while (end < flashcards.length - 1 && flashcards[end + 1].length !== 0) {
+                end++;
+            }
+
+            return { start, end };
+        }
+
+        async function initializeFlashcards() {
+            flashcards = await fetchFlashcards();
+            if (flashcards.length > 0) {
+                currentIndex = 0;
+                displayCurrentFlashcard();
+            }
+        }
+
+        function nextFlashcard() {
+            if (flashcards && flashcards.length > 0) {
+                const { start, end } = getCurrentDeckBoundaries();
+                currentIndex = currentIndex === end ? start : currentIndex + 1;
+                // Skip empty arrays (deck separators)
+                while (flashcards[currentIndex].length === 0 && currentIndex < end) {
+                    currentIndex++;
+                }
+                displayCurrentFlashcard();
+            }
+        }
+
+        function previousFlashcard() {
+            if (flashcards && flashcards.length > 0) {
+                const { start, end } = getCurrentDeckBoundaries();
+                currentIndex = currentIndex === start ? end : currentIndex - 1;
+                // Skip empty arrays (deck separators)
+                while (flashcards[currentIndex].length === 0 && currentIndex > start) {
+                    currentIndex--;
+                }
+                displayCurrentFlashcard();
+            }
+        }
+
+
+        function displayCurrentFlashcard() {
+            if (flashcards && flashcards.length > 0 && flashcards[currentIndex].length > 0) {
+                let currentFlashcard = flashcards[currentIndex];
+                document.getElementById('flashcard-content').textContent = currentFlashcard[0];
+                isFlipped = false;
+
+                // Show or hide the marker
+                const marker = document.getElementById('marker');
+                if (currentFlashcard[2]) {
+                    marker.style.display = 'block';
+                    document.getElementById('mark-button').textContent = 'UNMARK';
+                } else {
+                    marker.style.display = 'none';
+                    document.getElementById('mark-button').textContent = 'MARK';
+                }
+
+                // Play audio if available
+                if (currentFlashcard[3]) {
+                    playAudio(currentFlashcard[0], currentFlashcard[3]);
+                }
+            }
+        }
+
+        function playAudio(word, urlString) {
+            // Stop current audio if it's playing
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            // Split the URL string into an array of URLs
+            /**
+             * @example 
+             * ['https://upload.wikimedia.org/wikipedia/commons/a/aa/De-vermeiden.ogg', 
+             * 'https://upload.wikimedia.org/wikipedia/commons/c/ca/De-vermeiden2.ogg', 
+             * 'https://upload.wikimedia.org/wikipedia/commons/5/5d/De-at-vermeiden.ogg']
+            */
+            const urls = urlString.split(',').map(url => url.trim());
+            // Initialize the index for this word if it doesn't exist
+            if (!audioIndex[word]) {
+                audioIndex[word] = 0;
+            }
+
+            // Get the current URL for this word
+            const currentUrl = urls[audioIndex[word]];
+
+            // Create and play the audio
+            currentAudio = new Audio(currentUrl);
+            currentAudio.play();
+
+            // Increment the index, looping back to 0 if we've reached the end
+            audioIndex[word] = (audioIndex[word] + 1) % urls.length;
+
+            return currentUrl; // Return the URL that was played
+        }
+
+
+        function flipFlashcard() {
+            if (flashcards && flashcards.length > 0) {
+                let currentFlashcard = flashcards[currentIndex];
+                isFlipped = !isFlipped;
+                document.getElementById('flashcard-content').textContent = isFlipped ? currentFlashcard[1] : currentFlashcard[0];
+
+                // Play audio again when flipping back to the front
+                if (!isFlipped && currentFlashcard[3]) {
+                    playAudio(currentFlashcard[0], currentFlashcard[3]);
+                } else {
+                    // Stop audio when flipping to the back
+                    if (currentAudio) {
+                        currentAudio.pause();
+                        currentAudio.currentTime = 0;
+                    }
+                }
+            }
+        }
+        async function markFlashcard() {
+            if (flashcards && flashcards.length > 0) {
+                let currentFlashcard = flashcards[currentIndex];
+                let mark = !currentFlashcard[2];  // Toggle mark
+
+                try {
+                    const response = await fetch('/markcell', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            word: currentFlashcard[0],
+                            position: currentIndex,
+                            mark: mark ? 'marked' : ''
+                        })
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    flashcards[currentIndex][2] = mark ? 'marked' : '';
+
+                    displayCurrentFlashcard();  // Update the display to show the marker and button label
+                } catch (error) {
+                    console.error("There was a problem marking the flashcard:", error);
+                }
+            }
+        }
+        document.getElementById('flip-button').addEventListener('click', flipFlashcard);
+        document.getElementById('right-button').addEventListener('click', nextFlashcard);
+        document.getElementById('left-button').addEventListener('click', previousFlashcard);
+        document.getElementById('mark-button').addEventListener('click', markFlashcard);
+
+
+        initializeFlashcards();
+    </script>
+</body>
+
+</html>
