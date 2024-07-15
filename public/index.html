@@ -9,6 +9,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700&display=swap" rel="stylesheet">
+    <style>
+        /* Existing styles */
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .volume-control input[type="range"] {
+            width: 100px;
+            margin-right: 10px;
+        }
+    </style>
 </head>
 
 <body>
@@ -35,6 +49,10 @@
     <button id="study-word">study this word</button>
 
     <button id="toggle-study-mode">Study Marked</button>
+    <div class="volume-control">
+        <input type="range" id="volume-slider" min="0" max="100" value="100">
+        <span id="volume-label">100%</span>
+    </div>
 
     <script>
         let flashcards;
@@ -48,8 +66,23 @@
         let isStudyingMarked = false;
         let markedFlashcards = [];
         let lastNormalModeIndex = 0;
+        let audioContext;
+        let gainNode;
 
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            gainNode = audioContext.createGain();
+            gainNode.connect(audioContext.destination);
 
+            // Set initial volume from localStorage or default to 1
+            const savedVolume = localStorage.getItem('flashcardVolume');
+            const initialVolume = savedVolume !== null ? parseFloat(savedVolume) : 1;
+            gainNode.gain.setValueAtTime(initialVolume, audioContext.currentTime);
+
+            // Update slider and label
+            document.getElementById('volume-slider').value = initialVolume * 100;
+            document.getElementById('volume-label').textContent = `${Math.round(initialVolume * 100)}%`;
+        }
 
         async function fetchFlashcards() {
             try {
@@ -117,23 +150,31 @@
                 stopStudyMode();
             }
         }
-        function studyCurrentWord() {
-            if (flashcards && flashcards.length > 0) {
-                let currentFlashcard = flashcards[currentIndex];
-                if (currentFlashcard[3]) {
-                    studyInterval = setInterval(() => {
-                        playAudio(currentFlashcard[0], currentFlashcard[3]);
-                    }, 3000); // Play every 3 seconds
-                }
-            }
-        }
+        // function studyCurrentWord() {
+        //     if (flashcards && flashcards.length > 0) {
+        //         let currentFlashcard = flashcards[currentIndex];
+        //         if (currentFlashcard[3]) {
+        //             studyInterval = setInterval(() => {
+        //                 playAudio(currentFlashcard[0], currentFlashcard[3]);
+        //             }, 3000); // Play every 3 seconds
+        //         }
+        //     }
+        // }
+        // function stopStudyMode() {
+        //     clearInterval(studyInterval);
+        //     if (currentAudio) {
+        //         currentAudio.pause();
+        //         currentAudio.currentTime = 0;
+        //     }
+        // }
         function stopStudyMode() {
             clearInterval(studyInterval);
             if (currentAudio) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
+                currentAudio.source.stop();
+                currentAudio = null;
             }
         }
+
 
         function getCurrentDeckBoundaries() {
             const deckSize = 25;
@@ -244,8 +285,11 @@
         function playAudio(word, urlString) {
             // Stop current audio if it's playing
             if (currentAudio) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
+                currentAudio.source.stop();
+                currentAudio = null;
+                // currentAudio.currentTime = 0;
+                // currentAudio.pause();
+
             }
             // Split the URL string into an array of URLs
             /**
@@ -263,14 +307,36 @@
             // Get the current URL for this word
             const currentUrl = urls[audioIndex[word]];
 
+            fetch(currentUrl)
+                .then(response => response.arrayBuffer())
+                .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                .then(audioBuffer => {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(gainNode);
+                    source.start(0);
+                    currentAudio = {
+                        source: source,
+                        word: word,
+                        url: currentUrl
+                    };
+                    source.onended = () => {
+                        currentAudio = null;
+                    };
+                })
+                .catch(e => console.error('Error with decoding audio data', e));
+
+            audioIndex[word] = (audioIndex[word] + 1) % urls.length;
+            return currentUrl;
+
             // Create and play the audio
-            currentAudio = new Audio(currentUrl);
-            currentAudio.play();
+            // currentAudio = new Audio(currentUrl);
+            // currentAudio.play();
 
             // Increment the index, looping back to 0 if we've reached the end
-            audioIndex[word] = (audioIndex[word] + 1) % urls.length;
+            // audioIndex[word] = (audioIndex[word] + 1) % urls.length;
 
-            return currentUrl; // Return the URL that was played
+            // return currentUrl; // Return the URL that was played
         }
 
 
@@ -287,15 +353,26 @@
                 } else {
                     // Stop audio when flipping to the back
                     if (currentAudio) {
-                        currentAudio.pause();
-                        currentAudio.currentTime = 0;
+                        currentAudio.source.stop();
+                        currentAudio = null;
                     }
                 }
             }
         }
         async function markFlashcard() {
             if (flashcards && flashcards.length > 0) {
-                let currentFlashcard = flashcards[currentIndex];
+                let currentFlashcard;
+                let mainArrayIndex;
+
+                if (isStudyingMarked) {
+                    currentFlashcard = markedFlashcards[currentIndex];
+                    // Find the index of this flashcard in the main flashcards array
+                    mainArrayIndex = flashcards.findIndex(card => card[0] === currentFlashcard[0]);
+                } else {
+                    currentFlashcard = flashcards[currentIndex];
+                    mainArrayIndex = currentIndex;
+                }
+
                 let mark = !currentFlashcard[2];  // Toggle mark
 
                 try {
@@ -306,19 +383,64 @@
                         },
                         body: JSON.stringify({
                             word: currentFlashcard[0],
-                            position: currentIndex,
+                            position: mainArrayIndex,
                             mark: mark ? 'marked' : ''
                         })
                     });
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    flashcards[currentIndex][2] = mark ? 'marked' : '';
+
+                    // Update the mark in both arrays
+                    flashcards[mainArrayIndex][2] = mark ? 'marked' : '';
+                    currentFlashcard[2] = mark ? 'marked' : '';
+
+                    // If unmarking in Study Marked mode, remove from markedFlashcards
+                    if (isStudyingMarked && !mark) {
+                        markedFlashcards = markedFlashcards.filter(card => card[0] !== currentFlashcard[0]);
+                        if (markedFlashcards.length === 0) {
+                            alert("No more marked flashcards. Switching to normal mode.");
+                            isStudyingMarked = false;
+                            currentIndex = mainArrayIndex;
+                            document.getElementById('toggle-study-mode').textContent = 'Study Marked';
+                        } else {
+                            currentIndex = currentIndex % markedFlashcards.length;
+                        }
+                    }
 
                     displayCurrentFlashcard();  // Update the display to show the marker and button label
                 } catch (error) {
                     console.error("There was a problem marking the flashcard:", error);
                 }
+            }
+        }
+
+        // function studyCurrentWord() {
+        //     if (flashcards && flashcards.length > 0) {
+        //         let currentFlashcard = flashcards[currentIndex];
+        //         if (currentFlashcard[3]) {
+        //             studyInterval = setInterval(() => {
+        //                 playAudio(currentFlashcard[0], currentFlashcard[3]);
+        //             }, 3000);
+        //         }
+        //     }
+        // }
+        function studyCurrentWord() {
+            if (flashcards && flashcards.length > 0) {
+                let currentFlashcard = flashcards[currentIndex];
+                if (currentFlashcard[3]) {
+                    studyInterval = setInterval(() => {
+                        playAudio(currentFlashcard[0], currentFlashcard[3]);
+                    }, 3000);
+                }
+            }
+        }
+
+        function stopStudyMode() {
+            clearInterval(studyInterval);
+            if (currentAudio) {
+                currentAudio.stop();
             }
         }
         document.getElementById('flip-button').addEventListener('click', flipFlashcard);
@@ -330,8 +452,14 @@
         document.getElementById('study-word').addEventListener('click', toggleStudyMode);
         document.getElementById('toggle-study-mode').addEventListener('click', toggleStudyMarked);
 
+        document.getElementById('volume-slider').addEventListener('input', function (e) {
+            const volume = e.target.value / 100;
+            gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+            document.getElementById('volume-label').textContent = `${e.target.value}%`;
+            localStorage.setItem('flashcardVolume', volume);
+        });
 
-
+        window.addEventListener('load', initAudio);
 
         initializeFlashcards();
     </script>

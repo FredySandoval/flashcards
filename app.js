@@ -46,7 +46,8 @@ app.get('/getAllFlashCardsInRawData', async (req, res) => {
     try {
         const rawData = await accessSpreadsheet(SPREAD_SHEET_ID, auth, 'Sheet1!A1:D');
         checkAndAddAudioForAllRows(SPREAD_SHEET_ID, auth, rawData)
-        res.json(rawData.data);
+        rawData.data.values.reverse();
+        res.json( rawData.data);
     } catch (error) {
         console.error('Error fetching data from Google Sheets:', error);
         res.status(500).send('Error fetching data from Google Sheets');
