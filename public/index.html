@@ -34,7 +34,7 @@
     </div>
     <div class="buttons-wrapper">
         <div class="buttons-container">
-            <button id="study-word">study this word</button>
+            <button id="study-this-word">study this word</button>
             <button id="toggle-study-mode">Study Marked</button>
             <button id="prev-deck-button">Previous Deck</button>
             <button id="next-deck-button">Next Deck</button>
@@ -123,7 +123,8 @@
                     return;
                 }
                 lastNormalModeIndex = currentIndex; // Store the current index before switching
-                currentIndex = 0; // Start at the beginning of marked flashcards
+                // currentIndex = 0; // Start at the beginning of marked flashcards
+                currentIndex = markedFlashcards.length - 1;
                 toggleButton.textContent = 'Normal Mode';
             } else {
                 // Switching back to "Normal Mode"
@@ -134,7 +135,7 @@
             displayCurrentFlashcard();
         }
         function toggleStudyMode() {
-            const studyButton = document.getElementById('study-word');
+            const studyButton = document.getElementById('study-this-word');
             isStudyMode = !isStudyMode;
 
             if (isStudyMode) {
@@ -198,18 +199,26 @@
             displayCurrentFlashcard();
         }
         function moveToNextDeck() {
-            const { end } = getCurrentDeckBoundaries();
+            const deckSize = 25;
             const totalFlashcards = flashcards.length;
-            if (end < totalFlashcards - 1) {
-                currentIndex = end + 1;
+            const currentDeck = Math.floor(currentIndex / deckSize);
+
+            const startOfNextDeck = (currentDeck + 1) * deckSize;
+            const endOfNextDeck = Math.min(startOfNextDeck + deckSize - 1, totalFlashcards - 1);
+
+            if (startOfNextDeck < totalFlashcards) {
+                // You can choose either start or end here
+                // currentIndex = startOfNextDeck; // To move to the start of the next deck
+                currentIndex = endOfNextDeck; // To move to the end of the next deck
                 displayCurrentFlashcard();
+            } else {
+                console.log("Already at the last deck.");
             }
         }
-
         function moveToPreviousDeck() {
             const { start } = getCurrentDeckBoundaries();
             if (start > 0) {
-                currentIndex = Math.max(0, start - 25);
+                currentIndex = Math.max(0, start - 1);
                 displayCurrentFlashcard();
             }
         }
@@ -427,7 +436,7 @@
         document.getElementById('mark-button').addEventListener('click', markFlashcard);
         document.getElementById('next-deck-button').addEventListener('click', moveToPreviousDeck);
         document.getElementById('prev-deck-button').addEventListener('click', moveToNextDeck);
-        document.getElementById('study-word').addEventListener('click', toggleStudyMode);
+        document.getElementById('study-this-word').addEventListener('click', toggleStudyMode);
         document.getElementById('toggle-study-mode').addEventListener('click', toggleStudyMarked);
 
         document.getElementById('volume-slider').addEventListener('input', function (e) {

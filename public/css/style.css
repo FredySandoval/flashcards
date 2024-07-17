@@ -91,6 +91,9 @@
     padding-bottom: 20px;
 }
 
+.buttons-container > :first-child {  margin-left: 0; }
+.buttons-container > :last-child {  margin-right: 0; }
+
 .flash-card-container {
     position: relative;
 }
