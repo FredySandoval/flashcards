@@ -36,7 +36,7 @@ async function extractAudioExamplesOfWord(word) {
 
     try {
         const response = await axios.get(url);
-        if (response.status !== 200 ) return [];
+        if (response.status !== 200) return [];
         const $ = cheerio.load(response.data);
 
         const audioExamples = [];
@@ -47,11 +47,11 @@ async function extractAudioExamplesOfWord(word) {
                 $(element).find('a.internal').each((i, audioLink) => {
                     const audioUrl = $(audioLink).attr('href');
                     const audioText = $(audioLink).text();
-                    if (audioUrl && 
+                    if (audioUrl &&
                         audioUrl.includes('.ogg') ||
                         audioUrl.includes('.oga') ||
                         audioUrl.includes('.mp3')
-                        ) {
+                    ) {
                         audioExamples.push({
                             url: audioUrl.startsWith('//') ? `https:${audioUrl}` : audioUrl,
                             text: audioText
@@ -145,32 +145,34 @@ async function checkAndAddAudioForAllRows(spreadsheetId, auth, rawData) {
     const audioColumnIndex = 3; // Assuming audio URLs are in column D (index 3)
     const wordColumnIndex = 0;  // Assuming words are in column A (index 0)
 
-    for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
+    // for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
+    for (let rowIndex = data.length - 1, i = 0; rowIndex >= 0; rowIndex--, i++) { // from last to first
+
         const row = data[rowIndex];
         const audioCell = row[audioColumnIndex];
         const word = row[wordColumnIndex];
-        
 
-        if (audioCell === undefined && word !== undefined && word !== '' ) {
-            try {
-                const audioExamples = await extractAudioExamplesOfWord(word);
-                console.log(audioExamples);
+        if (audioCell !== undefined ) continue;
+        // if (audioCell === undefined && word !== undefined && word !== '' ) {
+        try {
+            const audioExamples = await extractAudioExamplesOfWord(word);
+            // console.log(audioExamples);
 
-                const urls = audioExamples.map(item => item.url).join(', ');
+            const urls = audioExamples.map(item => item.url).join(', ');
 
-                // Adding 1 to rowIndex because spreadsheet rows are 1-indexed
-                await insertValueInCell(
-                    spreadsheetId,
-                    auth,
-                    `Sheet1!D${rowIndex + 1}:E${rowIndex + 1}`, // example: Sheet!D1:E1
-                    [[urls]] //  single value [['https://..']]
-                );
+            // Adding 1 to rowIndex because spreadsheet rows are 1-indexed
+            await insertValueInCell(
+                spreadsheetId,
+                auth,
+                `Sheet1!D${rowIndex + 1}:E${rowIndex + 1}`, // example: Sheet!D1:E1
+                [[urls]] //  single value [['https://..']]
+            );
 
-                console.log(`Added audio for word: ${word}`);
-            } catch (error) {
-                console.error(`Error adding audio for word: ${word}`, error);
-            }
+            console.log(`Added audio for word: ${word}`);
+        } catch (error) {
+            console.error(`Error adding audio for word: ${word}`, error);
         }
+        // }
         // Introduce a delay of 100 milliseconds between iterations
         await delay(100);
     }

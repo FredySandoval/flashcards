@@ -45,6 +45,28 @@
     }
 }
 
+.info-wrapper {
+    display: flex;
+    justify-content: center;
+    padding-top: 10px;
+    font-family: "Nunito", sans-serif;
+    color: #bcbcbc;
+    font-size: 14px;
+}
+
+.info-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+#card-info {
+    float: left;
+}
+
+#deck-info {
+    float: right;
+}
+
 .buttons-wrapper {
     display: flex;
     justify-content: center;
@@ -85,4 +107,18 @@
     height: 20px;
     background-color: #8b8b8b56;
     border-radius: 50%;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    width: 100%;
+    max-width: 400px;
+    accent-color: gray;
+}
+
+.volume-control input[type="range"] {
+    width: 100px;
+    margin-right: 10px;
 }

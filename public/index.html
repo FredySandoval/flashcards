@@ -9,20 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700&display=swap" rel="stylesheet">
-    <style>
-        /* Existing styles */
-
-        .volume-control {
-            display: flex;
-            align-items: center;
-            margin-top: 10px;
-        }
-
-        .volume-control input[type="range"] {
-            width: 100px;
-            margin-right: 10px;
-        }
-    </style>
 </head>
 
 <body>
@@ -30,6 +16,12 @@
         <div class="flash-card">
             <div id="marker" class="marker" style="display: none;"></div>
             <p id="flashcard-content"></p>
+        </div>
+    </div>
+    <div class="info-wrapper">
+        <div class="info-container">
+            <div id="card-info"></div>
+            <div id="deck-info"></div>
         </div>
     </div>
     <div class="buttons-wrapper">
@@ -40,18 +32,21 @@
             <button id="right-button">RIGHT</button>
         </div>
     </div>
-    <div id="card-info"></div>
-    <div id="deck-info"></div>
-
-    <button id="prev-deck-button">Previous Deck</button>
-    <button id="next-deck-button">Next Deck</button>
-
-    <button id="study-word">study this word</button>
-
-    <button id="toggle-study-mode">Study Marked</button>
-    <div class="volume-control">
-        <input type="range" id="volume-slider" min="0" max="100" value="100">
-        <span id="volume-label">100%</span>
+    <div class="buttons-wrapper">
+        <div class="buttons-container">
+            <button id="study-word">study this word</button>
+            <button id="toggle-study-mode">Study Marked</button>
+            <button id="prev-deck-button">Previous Deck</button>
+            <button id="next-deck-button">Next Deck</button>
+        </div>
+    </div>
+    <style>
+    </style>
+    <div class="info-wrapper">
+        <div class="volume-control">
+            <input type="range" id="volume-slider" min="0" max="100" value="100">
+            <span id="volume-label">100%</span>
+        </div>
     </div>
 
     <script>
@@ -150,23 +145,6 @@
                 stopStudyMode();
             }
         }
-        // function studyCurrentWord() {
-        //     if (flashcards && flashcards.length > 0) {
-        //         let currentFlashcard = flashcards[currentIndex];
-        //         if (currentFlashcard[3]) {
-        //             studyInterval = setInterval(() => {
-        //                 playAudio(currentFlashcard[0], currentFlashcard[3]);
-        //             }, 3000); // Play every 3 seconds
-        //         }
-        //     }
-        // }
-        // function stopStudyMode() {
-        //     clearInterval(studyInterval);
-        //     if (currentAudio) {
-        //         currentAudio.pause();
-        //         currentAudio.currentTime = 0;
-        //     }
-        // }
         function stopStudyMode() {
             clearInterval(studyInterval);
             if (currentAudio) {
@@ -190,7 +168,7 @@
         async function initializeFlashcards() {
             flashcards = await fetchFlashcards();
             if (flashcards.length > 0) {
-                currentIndex = 0;
+                currentIndex = flashcards.length - 1; // starts at the end
                 displayCurrentFlashcard();
             }
         }
@@ -239,23 +217,28 @@
             const { start, end } = getCurrentDeckBoundaries();
             const currentDeck = isStudyingMarked ? markedFlashcards : flashcards;
             const totalCards = currentDeck.length;
-            const currentCardNumber = currentIndex + 1;
-            const currentCardInDeck = (currentIndex - start) + 1;
-            const totalCardsInDeck = end - start + 1;
 
-            let infoText = isStudyingMarked
-                ? `Marked Card ${currentCardNumber}/${totalCards}`
-                : `Card ${currentCardInDeck}/${totalCardsInDeck}`;
+            // Calculate reverse index
+            const reverseIndex = totalCards - currentIndex;
 
-            if (!isStudyingMarked) {
-                const currentDeck = Math.floor(start / 25) + 1;
-                const totalDecks = Math.ceil(flashcards.length / 25); // fix this one
-                infoText += ` | Deck ${currentDeck}/${totalDecks}`;
+            let infoText;
+            if (isStudyingMarked) {
+                infoText = `Marked Card ${reverseIndex}/${totalCards}`;
+            } else {
+                const totalCardsInDeck = end - start + 1;
+                const reverseCardInDeck = totalCardsInDeck - (currentIndex - start);
+                infoText = `Card ${reverseCardInDeck}/${totalCardsInDeck}`;
             }
 
             document.getElementById('card-info').textContent = infoText;
-        }
 
+            if (!isStudyingMarked) {
+                const totalDecks = Math.ceil(flashcards.length / 25);
+                const currentDeckIndex = Math.floor(start / 25);
+                const reverseDeckNumber = totalDecks - currentDeckIndex;
+                document.getElementById('deck-info').textContent = `Deck ${reverseDeckNumber}/${totalDecks}`;
+            }
+        }
         function displayCurrentFlashcard() {
             const currentDeck = isStudyingMarked ? markedFlashcards : flashcards;
             if (currentDeck && currentDeck.length > 0 && currentDeck[currentIndex].length > 0) {
@@ -287,8 +270,6 @@
             if (currentAudio) {
                 currentAudio.source.stop();
                 currentAudio = null;
-                // currentAudio.currentTime = 0;
-                // currentAudio.pause();
 
             }
             // Split the URL string into an array of URLs
@@ -328,15 +309,6 @@
 
             audioIndex[word] = (audioIndex[word] + 1) % urls.length;
             return currentUrl;
-
-            // Create and play the audio
-            // currentAudio = new Audio(currentUrl);
-            // currentAudio.play();
-
-            // Increment the index, looping back to 0 if we've reached the end
-            // audioIndex[word] = (audioIndex[word] + 1) % urls.length;
-
-            // return currentUrl; // Return the URL that was played
         }
 
 
@@ -415,21 +387,16 @@
                 }
             }
         }
-
-        // function studyCurrentWord() {
-        //     if (flashcards && flashcards.length > 0) {
-        //         let currentFlashcard = flashcards[currentIndex];
-        //         if (currentFlashcard[3]) {
-        //             studyInterval = setInterval(() => {
-        //                 playAudio(currentFlashcard[0], currentFlashcard[3]);
-        //             }, 3000);
-        //         }
-        //     }
-        // }
         function studyCurrentWord() {
             if (flashcards && flashcards.length > 0) {
-                let currentFlashcard = flashcards[currentIndex];
-                if (currentFlashcard[3]) {
+                let currentFlashcard;
+                if (isStudyingMarked) {
+                    currentFlashcard = markedFlashcards[currentIndex];
+                } else {
+                    currentFlashcard = flashcards[currentIndex];
+                }
+
+                if (currentFlashcard && currentFlashcard[3]) {
                     studyInterval = setInterval(() => {
                         playAudio(currentFlashcard[0], currentFlashcard[3]);
                     }, 3000);
@@ -437,18 +404,29 @@
             }
         }
 
+
         function stopStudyMode() {
             clearInterval(studyInterval);
             if (currentAudio) {
-                currentAudio.stop();
+                currentAudio.source.stop();
+                currentAudio = null;
             }
         }
+        document.addEventListener('keydown', (event) => {
+            if (event.key === '6' || event.key === 'l') {
+                previousFlashcard();
+            } else if (event.key === '4' || event.key === 'h') {
+                nextFlashcard();
+            } else if (event.key === '5' || event.key === 'k') {
+                flipFlashcard();
+            }
+        })
         document.getElementById('flip-button').addEventListener('click', flipFlashcard);
-        document.getElementById('right-button').addEventListener('click', nextFlashcard);
-        document.getElementById('left-button').addEventListener('click', previousFlashcard);
+        document.getElementById('right-button').addEventListener('click', previousFlashcard);
+        document.getElementById('left-button').addEventListener('click', nextFlashcard);
         document.getElementById('mark-button').addEventListener('click', markFlashcard);
-        document.getElementById('next-deck-button').addEventListener('click', moveToNextDeck);
-        document.getElementById('prev-deck-button').addEventListener('click', moveToPreviousDeck);
+        document.getElementById('next-deck-button').addEventListener('click', moveToPreviousDeck);
+        document.getElementById('prev-deck-button').addEventListener('click', moveToNextDeck);
         document.getElementById('study-word').addEventListener('click', toggleStudyMode);
         document.getElementById('toggle-study-mode').addEventListener('click', toggleStudyMarked);
 

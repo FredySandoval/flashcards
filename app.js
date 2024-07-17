@@ -46,7 +46,7 @@ app.get('/getAllFlashCardsInRawData', async (req, res) => {
     try {
         const rawData = await accessSpreadsheet(SPREAD_SHEET_ID, auth, 'Sheet1!A1:D');
         checkAndAddAudioForAllRows(SPREAD_SHEET_ID, auth, rawData)
-        rawData.data.values.reverse();
+        // rawData.data.values.reverse();
         res.json( rawData.data);
     } catch (error) {
         console.error('Error fetching data from Google Sheets:', error);
@@ -58,9 +58,8 @@ app.post('/markcell', async (req, res) => {
     if (mark == undefined) mark = 'nothing';
     console.log(word, position);
     try {
-        await insertValueInCell(SPREAD_SHEET_ID, auth, `Sheet1!C${position + 1}:D`, [[ mark ]] )
-        // await insertValueInCell(SPREAD_SHEET_ID, auth, '', [['1']])
-        res.json({data: 'success'})
+        const response = await insertValueInCell(SPREAD_SHEET_ID, auth, `Sheet1!C${position + 1}:D`, [[ mark ]] )
+        res.json({data: response.data})
     } catch (error) {
         res.status(500).send('error in path /markcell')
     }
