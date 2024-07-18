@@ -49,6 +49,12 @@
         </div>
     </div>
 
+    <div class="buttons-wrapper">
+        <div class="buttons-container">
+            <button id="hide-word-button">Hide Word</button>
+        </div>
+    </div>
+
     <script>
         let flashcards;
         let currentIndex = -1;
@@ -63,6 +69,8 @@
         let lastNormalModeIndex = 0;
         let audioContext;
         let gainNode;
+        let isWordHidden = false;
+
 
         function initAudio() {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -115,20 +123,17 @@
             const toggleButton = document.getElementById('toggle-study-mode');
 
             if (isStudyingMarked) {
-                // Switching to "Marked Flashcards Only" mode
                 markedFlashcards = flashcards.filter(card => card[2] === 'marked');
                 if (markedFlashcards.length === 0) {
                     alert("No marked flashcards found. Please mark some flashcards first.");
                     isStudyingMarked = false;
                     return;
                 }
-                lastNormalModeIndex = currentIndex; // Store the current index before switching
-                // currentIndex = 0; // Start at the beginning of marked flashcards
+                lastNormalModeIndex = currentIndex;
                 currentIndex = markedFlashcards.length - 1;
                 toggleButton.textContent = 'Normal Mode';
             } else {
-                // Switching back to "Normal Mode"
-                currentIndex = lastNormalModeIndex; // Restore the last normal mode index
+                currentIndex = lastNormalModeIndex;
                 toggleButton.textContent = 'Study Marked';
             }
 
@@ -207,8 +212,6 @@
             const endOfNextDeck = Math.min(startOfNextDeck + deckSize - 1, totalFlashcards - 1);
 
             if (startOfNextDeck < totalFlashcards) {
-                // You can choose either start or end here
-                // currentIndex = startOfNextDeck; // To move to the start of the next deck
                 currentIndex = endOfNextDeck; // To move to the end of the next deck
                 displayCurrentFlashcard();
             } else {
@@ -248,11 +251,16 @@
                 document.getElementById('deck-info').textContent = `Deck ${reverseDeckNumber}/${totalDecks}`;
             }
         }
+
         function displayCurrentFlashcard() {
             const currentDeck = isStudyingMarked ? markedFlashcards : flashcards;
             if (currentDeck && currentDeck.length > 0 && currentDeck[currentIndex].length > 0) {
                 let currentFlashcard = currentDeck[currentIndex];
-                document.getElementById('flashcard-content').textContent = currentFlashcard[0];
+                if (!isFlipped) {
+                    document.getElementById('flashcard-content').textContent = isWordHidden ? '' : currentFlashcard[0];
+                } else {
+                    document.getElementById('flashcard-content').textContent = currentFlashcard[1];
+                }
                 isFlipped = false;
 
                 // Show or hide the marker
@@ -269,6 +277,9 @@
                 if (currentFlashcard[3]) {
                     playAudio(currentFlashcard[0], currentFlashcard[3]);
                 }
+
+                // Update the "Hide Word" button text
+                document.getElementById('hide-word-button').textContent = isWordHidden ? 'Reveal Word' : 'Hide Word';
 
                 // Display current card info
                 updateCardInfo();
@@ -319,14 +330,16 @@
             audioIndex[word] = (audioIndex[word] + 1) % urls.length;
             return currentUrl;
         }
-
-
         function flipFlashcard() {
             const currentDeck = isStudyingMarked ? markedFlashcards : flashcards;
             if (currentDeck && currentDeck.length > 0) {
                 let currentFlashcard = currentDeck[currentIndex];
                 isFlipped = !isFlipped;
-                document.getElementById('flashcard-content').textContent = isFlipped ? currentFlashcard[1] : currentFlashcard[0];
+                if (isFlipped) {
+                    document.getElementById('flashcard-content').textContent = currentFlashcard[1];
+                } else {
+                    document.getElementById('flashcard-content').textContent = isWordHidden ? '' : currentFlashcard[0];
+                }
 
                 // Play audio again when flipping back to the front
                 if (!isFlipped && currentFlashcard[3]) {
@@ -340,6 +353,11 @@
                 }
             }
         }
+        function toggleWordVisibility() {
+            isWordHidden = !isWordHidden;
+            displayCurrentFlashcard();
+        }
+
         async function markFlashcard() {
             if (flashcards && flashcards.length > 0) {
                 let currentFlashcard;
@@ -438,6 +456,8 @@
         document.getElementById('prev-deck-button').addEventListener('click', moveToNextDeck);
         document.getElementById('study-this-word').addEventListener('click', toggleStudyMode);
         document.getElementById('toggle-study-mode').addEventListener('click', toggleStudyMarked);
+        document.getElementById('hide-word-button').addEventListener('click', toggleWordVisibility);
+
 
         document.getElementById('volume-slider').addEventListener('input', function (e) {
             const volume = e.target.value / 100;
