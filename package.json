@@ -2,9 +2,9 @@
   "name": "project-flash-cards",
   "version": "1.0.0",
   "description": "",
-  "source": "src/index.html",
+  "source": "src/client/index.html",
   "scripts": {
-    "start": "parcel",
+    "dev": "parcel",
     "build": "parcel build"
   },
   "repository": {
@@ -20,5 +20,8 @@
   "homepage": "https://github.com/FredySandoval/flashcards#readme",
   "devDependencies": {
     "parcel": "^2.12.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
   }
 }
