@@ -4,7 +4,9 @@
   "description": "",
   "source": "src/client/index.html",
   "scripts": {
-    "dev": "parcel",
+    "dev:client": "parcel",
+    "dev:server": "node --watch-path=./src/server --env-file=.env.development ./src/server/index.js",
+    "prod:server": "node --env-file=.env.production ./src/server/index.js",
     "build": "parcel build"
   },
   "repository": {
@@ -22,6 +24,11 @@
     "parcel": "^2.12.0"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0-rc.12",
+    "express": "^4.19.2",
+    "googleapis": "^140.0.1",
+    "joi": "^17.13.3",
+    "winston": "^3.13.1"
   }
 }

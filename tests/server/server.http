@@ -1,0 +1,7 @@
+POST http://localhost:3000/getAllFlashcards HTTP/1.1
+content-type: application/json
+
+{
+    "SPREADSHEET_ID": "1w8JKb4kko-PIX0y8kBsMr7Kor9KGNFsYKkR6-iNQ3xc",
+    "SHEET": 0
+}

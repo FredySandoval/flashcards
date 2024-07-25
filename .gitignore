@@ -3,3 +3,9 @@ fredy-dev-291705-eb57c5981f38.json
 .parcel-cache/
 dist/
 dist/*
+.env
+.env.development
+.env.production
+combined.log
+error.log
+
