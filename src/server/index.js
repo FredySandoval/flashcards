@@ -1,15 +1,24 @@
 const express = require('express');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
 const routes = require('./routes/index.js');
-const { getLocalIPAddress } = require('./routes/functions.js');
-const { CONFIG } = require('./routes/constants.js');
+const { getLocalIPAddress } = require('./utils/functions.js');
+const { CONFIG } = require('./utils/constants.js');
 
 
 const app = express();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Correlation ID middleware
+const addCorrelationId = (req, res, next) => {
+  req.correlationId = uuidv4();
+  res.setHeader('X-Correlation-ID', req.correlationId);
+  next();
+};
+app.use(addCorrelationId);
 
 app.use('/getAllFlashcards', routes);
 
@@ -18,8 +27,6 @@ app.use((req, res, next) => {
   const error = new Error('Not Found - ' + req.originalUrl);
   next(error);
 })
-
-
 app.use((err, req, res, next) => {
   res.status(res.statusCode || 500);
   res.json({

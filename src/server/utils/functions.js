@@ -1,7 +1,8 @@
 const { google } = require('googleapis');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { logger } = require('./constants');
+// const { logger } = require('./constants');
+const { createLogger, format, transports } = require('winston');
 
 function validateRequest(req, expectedKeys) {
   if (!Object.keys(req.body).length) {
@@ -60,17 +61,6 @@ function getLocalIPAddress() {
   }
   return localhostIP;
 }
-const handleError = (req, res, status, message, position) => {
-  logger.warn(`${position}-Error at ${req.originalUrl}`, message);
-
-  return res.status(status).json({
-    success: false,
-    error: true,
-    message: message,
-    data: [],
-    titles: []
-  });
-};
 /**
  * Cleans a word by trimming spaces and removing leading definite articles (der, die, das).
  * If the input word is not a string or is empty after trimming, returns an empty string.
@@ -223,7 +213,64 @@ async function checkAndAddAudioForAllRows(spreadsheetId, auth, rawData) {
   }
   return totalWords;
 }
+const logger = createLogger({
+  level: 'info',
+  format: format.combine(
+    format.timestamp({
+      format: 'YYYY-MM-DD HH:mm:ss'
+    }),
+    format.errors({ stack: true }),
+    format.splat(),
+    format.json()
+  ),
+  transports: [
+    //
+    // - Write to all logs with level `info` and below to `quick-start-combined.log`.
+    // - Write all logs error (and below) to `quick-start-error.log`.
+    //
+    new transports.Console({ format: format.combine(format.colorize(), format.simple())}),
+    new transports.File({ filename: 'error.log', level: 'error' }),
+    new transports.File({ filename: 'combined.log' })
+  ]
+});
+
+const handleSuccess = (res, data, titles) => {
+    logger.info('success sending')
+    return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        error: false,
+        message: '',
+        titles,
+        data
+    });
+}
+
+const handleError = (req, error, message_to_send, id) => {
+  const obj = {
+    id: id,
+    error_at: req.originalUrl,
+    error: error
+  }
+  logger.log(obj)
+
+  return {
+    error: true,
+    message: message_to_send,
+  }
+};
+// const handleError = (req, res, status, message, position) => {
+//   logger.warn(`${position}-Error at ${req.originalUrl}`, message);
+
+//   return res.status(status).json({
+//     success: false,
+//     error: true,
+//     message: message,
+//     data: [],
+//     titles: []
+//   });
+// };
 module.exports = {
+  handleSuccess,
   checkAndAddAudioForAllRows,
   handleError,
   getSpreadsheetValues,

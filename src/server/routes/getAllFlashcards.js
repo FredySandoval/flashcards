@@ -7,73 +7,91 @@ const {
     getSpreadsheetValues,
     handleError,
     checkAndAddAudioForAllRows,
-} = require('./functions');
-const { HTTP_STATUS, CONFIG, auth, logger } = require('./constants.js');
+    handleSuccess,
+} = require('../utils/functions.js');
+
+const { CODE, CONFIG, auth } = require('../utils/constants.js');
+
+const { logger } = require('../utils/logger.js');
 
 const schemaBody = Joi.object({
-    SPREADSHEET_ID: Joi.string().required(),
-    SHEET: Joi.number().integer().required()
+    spreadsheet_id: Joi.string().required(),
+    sheet: Joi.number().integer().required(),
+    frontside_data: Joi.string().required(),
+    backside_data: Joi.string().required(),
+    frontside_url_sounds: Joi.string().required(),
+    backside_url_sounds: Joi.string().required(),
+    frontside_marking: Joi.string().required(),
 });
 
+const validateRequest = (req, res, next) => {
+    const { error, value } = schemaBody.validate(req.body);
+    if (error) {
+        logger.error({ message: `01 ERROR ${req.originalUrl}`, stack: error });
+        const errorMessage = error.details.map(detail => detail.message);
+        return res.status(CODE.BAD_REQUEST).json({
+            error: errorMessage
+        })
+    };
+    req.validatedBody = value;
+    next();
+};
+// Error handling middleware
+const errorHandler = (err, req, res, next) => {
+  const correlationId = req.correlationId;
+  logger.error( { message:`03 ERROR ${req.originalUrl}` , correlationId,  stack: err });
+  res.status(CODE.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
+};
 
-const handleSuccess = (res, data, titles) => {
-    logger.info('success sending')
-    return res.status(HTTP_STATUS.OK).json({
-        success: true,
-        error: false,
-        message: '',
-        titles,
-        data
-    });
-}
-router.post('/', async (req, res) => {
+router.post('/', validateRequest,async (req, res, next) => {
+    const correlationId = req.correlationId;
+    const {
+        spreadsheet_id,
+        sheet,
+        frontside_data,
+        backside_data,
+        frontside_url_sounds,
+        backside_url_sounds,
+        frontside_marking,
+    } = req.validatedBody;
+
     try {
-        const { error, value } = schemaBody.validate(req.body);
-        if (error) {
-            return handleError(
-                req,
-                res,
-                HTTP_STATUS.BAD_REQUEST,
-                error.details[0].message,
-                '01'
-            );
-        }
-
-        const { SPREADSHEET_ID, SHEET } = value;
-        const spreadSheetData = await getSpreadsheetMetadata(SPREADSHEET_ID, auth);
-        if (spreadSheetData.status !== HTTP_STATUS.OK ) {
-            return handleError(
-                req,
-                res,
-                HTTP_STATUS.BAD_REQUEST,
-                spreadSheetData.response.statusText,
-                '02'
-            )
+        const spreadSheetData = await getSpreadsheetMetadata(spreadsheet_id, auth);
+        if (spreadSheetData.status !== CODE.OK) {
+            logger.warn({ message: `02 ERROR, Spreadsheet not found ${req.originalUrl} `, correlationId})
+            return res.status(CODE.NOT_FOUND).json({
+                error: 'spreadsheet not found'
+            })
         }
 
         const titles = spreadSheetData.data.sheets.map(sheet => sheet.properties.title);
-        const selectedSheet = titles[SHEET] || titles[0]
+        const selectedSheet = titles[sheet] || titles[0]
         const range = `${selectedSheet}!${CONFIG.SHEET_RANGE}`; // Sheet1!A1:D
 
-        let mainData = await getSpreadsheetValues(SPREADSHEET_ID, auth, range);
-        const audioWordsProcessed = await checkAndAddAudioForAllRows(SPREADSHEET_ID, auth, mainData)
+        let data = await getSpreadsheetValues(spreadsheet_id, auth, range);
+        const audioWordsProcessed = await checkAndAddAudioForAllRows(spreadsheet_id, auth, data)
         if (audioWordsProcessed.length > 0) {
-            mainData = await getSpreadsheetValues(SPREADSHEET_ID, auth, range);
-            return handleSuccess(res, mainData.data.values, titles);
+            data = await getSpreadsheetValues(spreadsheet_id, auth, range);
+            logger.info( { message: `01 data processed and updated`, correlationId})
+            return res.status(CODE.OK).json({
+                error: false,
+                titles,
+                data: data.data.values
+            });
+        
         } else {
-            console.log(audioWordsProcessed);
-            return handleSuccess(res, mainData.data.values, titles)
+            logger.info( { message: `02 data processed`, correlationId})
+            return res.status(CODE.OK).json({
+                error: false,
+                titles,
+                data: data.data.values
+            });
         }
     } catch (error) {
-        console.log(error);
-        return handleError(
-            req,
-            res,
-            HTTP_STATUS.INTERNAL_SERVER_ERROR,
-            'Internal server error',
-            '03'
-        )
+        next(error);
     }
 });
+
+router.use(errorHandler);
 
 module.exports = router;
