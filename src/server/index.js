@@ -6,7 +6,8 @@ const routes = require('./routes/index.js');
 const { getLocalIPAddress } = require('./utils/functions.js');
 const { CONFIG } = require('./utils/constants.js');
 
-
+// this was added in the other github profile
+// this other paragraph was also added during the work time
 const app = express();
 
 app.use(express.json());
