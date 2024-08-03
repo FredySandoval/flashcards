@@ -2,7 +2,7 @@ const { google } = require('googleapis');
 const axios = require('axios');
 const cheerio = require('cheerio');
 // const { logger } = require('./constants');
-const { createLogger, format, transports } = require('winston');
+const { logger } = require('./logger');
 
 function validateRequest(req, expectedKeys) {
   if (!Object.keys(req.body).length) {
@@ -86,7 +86,7 @@ function cleanWord(word) {
  */
 async function extractAudioExamplesOfWord(word) {
   if (typeof word !== 'string' || word.trim() === '') {
-    logger.warn(`01-Error at extractAudioExamplesOfWord`, 'word must be a non-empty string');
+    logger.warn({ message: `[warn] 01 extractAudioExamplesOfWord`})
     return []; // Return empty array instead of throwing an error
   }
 
@@ -190,7 +190,7 @@ async function checkAndAddAudioForAllRows(spreadsheetId, auth, rawData) {
     // if (audioCell === undefined && word !== undefined && word !== '' ) {
     try {
       const audioExamples = await extractAudioExamplesOfWord(word);
-      // console.log(audioExamples);
+      if (audioExamples.length == 0 ) continue;
 
       const urls = audioExamples.map(item => item.url).join(', ');
 
@@ -198,14 +198,14 @@ async function checkAndAddAudioForAllRows(spreadsheetId, auth, rawData) {
       await insertValueInCell(
         spreadsheetId,
         auth,
-        `Sheet1!D${rowIndex + 1}:E${rowIndex + 1}`, // example: Sheet!D1:E1
+        `Sheet1!D${rowIndex + 2}:E${rowIndex + 2}`, // example: Sheet!D1:E1
         [[urls]] //  single value [['https://..']]
       );
       totalWords.push(word);
       // console.log(`Added audio for word: ${word}`);
       logger.info(`Added audio for word: ${word}`);
     } catch (error) {
-      console.error(`Error adding audio for word: ${word}`, error);
+      logger.error({ message: `Error adding audio for word: ${word}`, logId: '01', stack: error });
     }
     // }
     // Introduce a delay of 100 milliseconds between iterations
@@ -213,66 +213,8 @@ async function checkAndAddAudioForAllRows(spreadsheetId, auth, rawData) {
   }
   return totalWords;
 }
-const logger = createLogger({
-  level: 'info',
-  format: format.combine(
-    format.timestamp({
-      format: 'YYYY-MM-DD HH:mm:ss'
-    }),
-    format.errors({ stack: true }),
-    format.splat(),
-    format.json()
-  ),
-  transports: [
-    //
-    // - Write to all logs with level `info` and below to `quick-start-combined.log`.
-    // - Write all logs error (and below) to `quick-start-error.log`.
-    //
-    new transports.Console({ format: format.combine(format.colorize(), format.simple())}),
-    new transports.File({ filename: 'error.log', level: 'error' }),
-    new transports.File({ filename: 'combined.log' })
-  ]
-});
-
-const handleSuccess = (res, data, titles) => {
-    logger.info('success sending')
-    return res.status(HTTP_STATUS.OK).json({
-        success: true,
-        error: false,
-        message: '',
-        titles,
-        data
-    });
-}
-
-const handleError = (req, error, message_to_send, id) => {
-  const obj = {
-    id: id,
-    error_at: req.originalUrl,
-    error: error
-  }
-  logger.log(obj)
-
-  return {
-    error: true,
-    message: message_to_send,
-  }
-};
-// const handleError = (req, res, status, message, position) => {
-//   logger.warn(`${position}-Error at ${req.originalUrl}`, message);
-
-//   return res.status(status).json({
-//     success: false,
-//     error: true,
-//     message: message,
-//     data: [],
-//     titles: []
-//   });
-// };
 module.exports = {
-  handleSuccess,
   checkAndAddAudioForAllRows,
-  handleError,
   getSpreadsheetValues,
   validateRequest,
   getLocalIPAddress,
