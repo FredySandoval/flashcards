@@ -195,6 +195,7 @@ async function checkAndAddAudioForAllRows(spreadsheetId, auth, rawData) {
       const urls = audioExamples.map(item => item.url).join(', ');
 
       // Adding 1 to rowIndex because spreadsheet rows are 1-indexed
+      console.log('Sheet1 is hardcoded, will cause an issue, please fix, function.js /checkAndAddAudioForAllRows')
       await insertValueInCell(
         spreadsheetId,
         auth,
@@ -218,5 +219,6 @@ module.exports = {
   getSpreadsheetValues,
   validateRequest,
   getLocalIPAddress,
-  getSpreadsheetMetadata
+  getSpreadsheetMetadata,
+  insertValueInCell,
 }

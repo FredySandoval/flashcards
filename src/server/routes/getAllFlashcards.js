@@ -5,9 +5,7 @@ const Joi = require('joi');
 const {
     getSpreadsheetMetadata,
     getSpreadsheetValues,
-    handleError,
     checkAndAddAudioForAllRows,
-    handleSuccess,
 } = require('../utils/functions.js');
 
 const { CODE, CONFIG, auth } = require('../utils/constants.js');
@@ -22,13 +20,16 @@ const schemaBody = Joi.object({
     frontside_url_sounds: Joi.string().required(),
     backside_url_sounds: Joi.string().required(),
     frontside_marking: Joi.string().required(),
+    image_reference : Joi.string().required(),
 });
 
 const validateRequest = (req, res, next) => {
+        console.log('why? 1S');
     const { error, value } = schemaBody.validate(req.body);
     if (error) {
         logger.error({ message: `01 ERROR ${req.originalUrl}`, stack: error });
         const errorMessage = error.details.map(detail => detail.message);
+        console.log(error);
         return res.status(CODE.BAD_REQUEST).json({
             error: errorMessage
         })
