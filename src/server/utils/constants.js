@@ -9,7 +9,7 @@ const CODE = {
 };
 
 const CONFIG = {
-    SHEET_RANGE: 'A2:D', // skip titles
+    SHEET_RANGE: 'A2:F', // skip titles
     PORT: process.env.PORT || 3000,
     NODE_ENV: process.env.NODE_ENV || 'development',
     DEVELOPER: process.env.NODE_ENV === 'developer'

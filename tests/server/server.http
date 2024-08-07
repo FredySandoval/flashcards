@@ -3,13 +3,7 @@ content-type: application/json
 
 {
         "spreadsheet_id": "1w8JKb4kko-PIX0y8kBsMr7Kor9KGNFsYKkR6-iNQ3xc",
-        "sheet": 0,
-        "frontside_data": "DE",
-        "backside_data": "ES",
-        "frontside_url_sounds": "DE SOUNDS",
-        "backside_url_sounds": "ES SOUNDS",
-        "frontside_marking" : "DE MARKED",
-        "image_reference" : "IMG REF"
+        "sheet": 0
 }
 
 ###
@@ -19,7 +13,6 @@ content-type: application/json
 {
         "spreadsheet_id": "1w8JKb4kko-PIX0y8kBsMr7Kor9KGNFsYKkR6-iNQ3xc",
         "sheet": 0,
-        "frontside_marking": "marked",
-        "position" : 5,
-        "word": "lage"
+        "frontside_marking": "YES",
+        "position" : 5
 }

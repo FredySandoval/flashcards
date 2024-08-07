@@ -15,11 +15,9 @@ const schemaMarkCell = Joi.object({
         spreadsheet_id: Joi.string().required(),
         sheet: Joi.number().integer().required(),
         frontside_marking: Joi.string().required(),
-        word: Joi.string().required(),
         position: Joi.number().integer().required(),
 });
 const validateRequest2 = (req, res, next) => {
-        console.log('hey arnold');
         const { error, value } = schemaMarkCell.validate(req.body);
         if (error) {
                 logger.error({ message: `01 ERROR ${req.originalUrl}`, stack: error });
@@ -40,17 +38,15 @@ const errorHandler = (err, req, res, next) => {
 };
 
 router.post('/', validateRequest2, async (req, res, next) => {
-        console.log('anything here 1');
         const correlationId = req.correlationId;
         const {
                 spreadsheet_id,
                 sheet,
                 frontside_marking,
-                word,
                 position,
         } = req.validatedBody;
 
-        if (frontside_marking === undefined) frontside_marking = 'myMark';
+        if (frontside_marking === undefined) frontside_marking = 'YES';
 
         try {
 
@@ -64,8 +60,9 @@ router.post('/', validateRequest2, async (req, res, next) => {
 
                 const titles = spreadSheetData.data.sheets.map(sheet => sheet.properties.title);
                 const selectedSheet = titles[sheet] || titles[0]
-                const range = `${ selectedSheet }!C${ position}:D`; 
-                console.log('position is hardcoded to D, this may cause issues when trying to change it')
+                const START_COL = 'C';
+                const END_COL = 'D';
+                const range = `${ selectedSheet }!${START_COL}${ position}:${END_COL}`; // `Sheet1!C1:D
 
                 const response = await insertValueInCell(spreadsheet_id, auth, range, [[ frontside_marking ]]);
                 res.status(CODE.OK).json({ data: response.data });

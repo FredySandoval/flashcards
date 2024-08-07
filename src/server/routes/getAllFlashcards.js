@@ -15,16 +15,9 @@ const { logger } = require('../utils/logger.js');
 const schemaBody = Joi.object({
     spreadsheet_id: Joi.string().required(),
     sheet: Joi.number().integer().required(),
-    frontside_data: Joi.string().required(),
-    backside_data: Joi.string().required(),
-    frontside_url_sounds: Joi.string().required(),
-    backside_url_sounds: Joi.string().required(),
-    frontside_marking: Joi.string().required(),
-    image_reference : Joi.string().required(),
 });
 
 const validateRequest = (req, res, next) => {
-        console.log('why? 1S');
     const { error, value } = schemaBody.validate(req.body);
     if (error) {
         logger.error({ message: `01 ERROR ${req.originalUrl}`, stack: error });
@@ -49,11 +42,6 @@ router.post('/', validateRequest,async (req, res, next) => {
     const {
         spreadsheet_id,
         sheet,
-        frontside_data,
-        backside_data,
-        frontside_url_sounds,
-        backside_url_sounds,
-        frontside_marking,
     } = req.validatedBody;
 
     try {
